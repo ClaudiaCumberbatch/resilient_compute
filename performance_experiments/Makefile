@@ -1,3 +1,3 @@
 .PHONY: clean
 clean: 
-	rm -rf data.db runinfo
+	rm -rf runinfo

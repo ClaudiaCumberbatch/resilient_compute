@@ -30,6 +30,7 @@ from parsl.launchers import SingleNodeLauncher
 
 from parsl.monitoring import MonitoringHub
 
+# TODO: change ip address in config
 def get_config(have_monitor, radio_mode):
     '''
     config = Config(
@@ -155,22 +156,25 @@ def sleep100s():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--target_workers", type=int, default=1, help="target workers")
-    parser.add_argument("-r", "--trials", type=int, default=1000, help="number of trials per batch submission")
-    parser.add_argument("-c", "--cores_per_node", type=int, default=32, help="cores per node")
-    parser.add_argument("-w", "--walltime", type=str, default='00:10:00', help="walltime")
+    parser.add_argument("-i", "--min_workers", type=int, default=1, help="minimum workers")
+    parser.add_argument("-a", "--max_workers", type=int, default=1024, help="maximum workers")
+    parser.add_argument("-r", "--trials", type=int, default=10, help="number of trials per batch submission")
+    parser.add_argument("-t", "--tasks_per_trial", type=int, default=1000, help="number of tasks per trial")
+    parser.add_argument("-c", "--cores_per_node", type=int, default=28, help="cores per node")
+    parser.add_argument("-w", "--walltime", type=str, default='00:20:00', help="walltime")
     args = parser.parse_args()
 
     # parsl.set_stream_logger()
     table_name = f'trail{str(args.trials)}-{time.strftime("%Y-%m-%d_%H-%M-%S", time.localtime())}'
     print(f"table name: {table_name}")
-    db = sqlite3.connect('data.db')
+    db = sqlite3.connect('multi.db')
     db.execute(f"""create table if not exists "{table_name}"(
         monitor_tag text,
         start_submit float,
+        end_submit float,
         returned float,
         connected_workers int,
-        task,
+        tasks_per_trial,
         tag text)"""
     )
 
@@ -195,7 +199,7 @@ if __name__ == "__main__":
         [t.result() for t in tasks]
         dfk.tasks = {}
 
-        for app in [noop, sleep10ms, sleep100ms, sleep1000ms]:
+        for app in [noop, sleep10ms, sleep100ms, sleep1000ms, sleep10s, sleep100s]:
         # for app in [noop]:
             sum1 = sum2 = 0
             for trial in range(args.trials):
