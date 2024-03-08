@@ -112,7 +112,7 @@ for _ in range(args.trials):
             retries=2,
             monitoring=MonitoringHub(
                             hub_address="localhost",
-                            hub_port=55055,
+                            # hub_port=55055,
                             monitoring_debug=False,
                             resource_monitoring_interval=1,
             ),
@@ -122,7 +122,7 @@ for _ in range(args.trials):
 
         parsl.clear()
         dfk = parsl.load(config)
-        executor = list(dfk.executors.values())[0]
+        # executor = list(dfk.executors.values())[0]
 
         @python_app
         def noop():
@@ -144,7 +144,8 @@ for _ in range(args.trials):
             time.sleep(1.0)
 
         attempt = 0
-        cmd = 'ls {} | wc -l'.format(os.path.join(executor.run_dir, executor.label, '*', '*worker*'))
+        # TODO: here should be able to get the number of connected workers, but the files seem to appear after the tasks are submitted
+        # cmd = 'ls {} | wc -l'.format(os.path.join(executor.run_dir, executor.label, '*', '*worker*'))
         # while True:
         #     connected_workers = int(subprocess.check_output(cmd, shell=True))
         #     if connected_workers < target_workers:
@@ -164,7 +165,7 @@ for _ in range(args.trials):
                 returned = time.time()
 
                 data = (
-                    executor.label,
+                    "executor.label",
                     start_submit,
                     end_submit,
                     returned,
@@ -183,5 +184,5 @@ for _ in range(args.trials):
                 print(e)
 
         target_workers *= 2
-        executor.shutdown()
+        # executor.shutdown()
         del dfk
