@@ -1,0 +1,2 @@
+2024-03-12 16:02:45.594 worker_log:636 412961 MainThread [INFO]  Worker 42 started
+2024-03-12 16:02:45.594 worker_log:638 412961 MainThread [DEBUG]  Debug logging enabled
