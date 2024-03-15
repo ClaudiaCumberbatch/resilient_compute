@@ -1,2 +1,0 @@
-/home/cc/miniconda3/envs/new_env/bin/process_worker_pool.py:4: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
-  __import__('pkg_resources').require('parsl==1.3.0.dev0')

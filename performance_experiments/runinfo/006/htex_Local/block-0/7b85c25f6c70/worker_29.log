@@ -1,5 +1,0 @@
-2024-03-12 16:33:02.607 worker_log:636 423693 MainThread [INFO]  Worker 29 started
-2024-03-12 16:33:02.607 worker_log:638 423693 MainThread [DEBUG]  Debug logging enabled
-2024-03-12 16:33:45.642 worker_log:721 423693 MainThread [INFO]  Received executor task 157
-2024-03-12 16:33:46.644 worker_log:737 423693 MainThread [INFO]  Completed executor task 157
-2024-03-12 16:33:46.645 worker_log:748 423693 MainThread [INFO]  All processing finished for executor task 157

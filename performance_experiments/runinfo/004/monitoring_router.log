@@ -1,3 +1,0 @@
-2024-03-12 16:20:05.093 monitoring_router:450 [INFO]  Initialized the UDP socket on 0.0.0.0:50784
-2024-03-12 16:20:05.097 monitoring_router:577 [INFO]  Starting MonitoringRouter in router_starter
-2024-03-12 16:26:07.413 monitoring_router:544 [INFO]  Monitoring router finished
