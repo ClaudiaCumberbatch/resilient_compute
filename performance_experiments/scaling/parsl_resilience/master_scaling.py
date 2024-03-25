@@ -6,6 +6,10 @@ import sqlite3
 import subprocess
 import sys
 import glob
+from datetime import datetime
+from diaspora_event_sdk import KafkaConsumer
+from diaspora_event_sdk import Client as GlobusClient
+import threading
 
 import parsl
 from parsl.config import Config
@@ -30,7 +34,7 @@ from parsl.launchers import SingleNodeLauncher
 
 from parsl.monitoring import MonitoringHub
 
-def get_config(have_monitor, radio_mode):
+def get_config(have_monitor, radio_mode, worker_per_exe):
     '''
     config = Config(
         executors=[
@@ -61,6 +65,7 @@ def get_config(have_monitor, radio_mode):
         config = Config(
             executors=[
                 HighThroughputExecutor(
+                    max_workers=worker_per_exe,
                     address="127.0.0.1",
                     label="htex_Local",
                     working_dir=os.getcwd() + "/" + "latency",
@@ -72,9 +77,9 @@ def get_config(have_monitor, radio_mode):
                     poll_period=100,
                     provider=LocalProvider(
                         channel=LocalChannel(),
-                        init_blocks=0,
-                        min_blocks=0,
-                        max_blocks=5,
+                        init_blocks=1,
+                        min_blocks=1,
+                        max_blocks=1,
                         launcher=SingleNodeLauncher(),
                     ),
                     block_error_handler=False,
@@ -96,6 +101,7 @@ def get_config(have_monitor, radio_mode):
         config = Config(
             executors=[
                 HighThroughputExecutor(
+                    max_workers=worker_per_exe,
                     address="127.0.0.1",
                     label="htex_Local",
                     working_dir=os.getcwd() + "/" + "latency",
@@ -107,9 +113,9 @@ def get_config(have_monitor, radio_mode):
                     poll_period=100,
                     provider=LocalProvider(
                         channel=LocalChannel(),
-                        init_blocks=0,
-                        min_blocks=0,
-                        max_blocks=5,
+                        init_blocks=1,
+                        min_blocks=1,
+                        max_blocks=1,
                         launcher=SingleNodeLauncher(),
                     ),
                     block_error_handler=False
@@ -120,7 +126,7 @@ def get_config(have_monitor, radio_mode):
             retries=2,
             usage_tracking=True
         )
-    print(config)
+    # print(config)
     return config, tag
 
 @python_app
@@ -152,11 +158,67 @@ def sleep100s():
     import time
     time.sleep(100.0)
 
+def cal_record():
+    global record_per_workflow
+    record_per_workflow = {}
+    c = GlobusClient()
+    topic = "radio-test"
+    # consumer = KafkaConsumer(topic, auto_offset_reset='earliest')
+    consumer = KafkaConsumer(topic)
+    for message in consumer:
+        if message.key is None:
+            continue
+        message_key_str = message.key.decode('utf-8')
+        record_per_workflow[message_key_str] = record_per_workflow.get(message_key_str, 0) + 1
+        with open('record_per_workflow.txt', 'w') as f:
+            f.write(str(record_per_workflow))
+
+
+def run_one_trail(have_monitor, radio_mode, workers, tasks_per_trial, trail, app):
+    config, monitor_tag = get_config(have_monitor, radio_mode, workers)
+    # clear dfk every trail, so that we can get a new run_id
+    # notice that this is very time consuming
+    parsl.clear()
+    dfk = parsl.load(config)
+
+    # priming
+    tasks = [sleep1000ms() for _ in range(0, workers)]
+    [t.result() for t in tasks]
+    dfk.tasks = {}
+
+    start_submit = time.time()
+    tasks = [app() for _ in range(0, tasks_per_trial)]
+    end_submit = time.time()
+    [t.result() for t in tasks]
+    returned = time.time()
+
+    data = (
+        dfk.run_id,
+        monitor_tag,
+        start_submit,
+        end_submit,
+        returned,
+        workers,
+        tasks_per_trial,
+        trail,
+        app.__name__
+    )
+
+    db.execute(f"""
+        insert into
+        "{table_name}"(run_id, monitor_tag, start_submit, end_submit, returned, workers, tasks_per_trial, trial, app_name)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?)""", data
+    )
+    db.commit()
+    t = (returned - start_submit) * 1000
+    del dfk
+    return t, monitor_tag
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--target_workers", type=int, default=1, help="target workers")
     parser.add_argument("-r", "--trials", type=int, default=1000, help="number of trials per batch submission")
+    parser.add_argument("-t", "--tasks_per_trial", type=int, default=1000, help="number of tasks per trial")
     parser.add_argument("-c", "--cores_per_node", type=int, default=32, help="cores per node")
     parser.add_argument("-w", "--walltime", type=str, default='00:10:00', help="walltime")
     args = parser.parse_args()
@@ -166,66 +228,35 @@ if __name__ == "__main__":
     print(f"table name: {table_name}")
     db = sqlite3.connect('data.db')
     db.execute(f"""create table if not exists "{table_name}"(
+        run_id text,
         monitor_tag text,
         start_submit float,
+        end_submit float,
         returned float,
-        connected_workers int,
-        task,
-        tag text)"""
+        workers int,
+        tasks_per_trial int,
+        trial int,
+        app_name text)"""
     )
 
-    target_workers = args.target_workers    
-    if target_workers % args.cores_per_node != 0:
-        nodes_per_block = 1
-        tasks_per_node = target_workers % args.cores_per_node 
-    else:
-        nodes_per_block = int(target_workers / args.cores_per_node)
-        tasks_per_node = args.cores_per_node 
+    # config_list = [(False, ''), (True, 'htex'), (True, 'diaspora')]
+    config_list = [(True, 'diaspora')]
+    # worker_list = [1, 2, 4, 8, 16, 32, 64, 128] # max 160
+    # worker_list = [8, 64, 128, 160] 
+    worker_list = [8, 64]
 
-    config_list = [get_config(have_monitor=False, radio_mode=''), 
-                   get_config(have_monitor=True, radio_mode='htex'), 
-                   get_config(have_monitor=True, radio_mode='diaspora')]
-    
-    for config, tag in config_list:
-        parsl.clear()
-        dfk = parsl.load(config)
-
-        # priming
-        tasks = [sleep1000ms() for _ in range(0, target_workers)]
-        [t.result() for t in tasks]
-        dfk.tasks = {}
-
-        for app in [noop, sleep10ms, sleep100ms, sleep1000ms]:
-        # for app in [noop]:
-            sum1 = sum2 = 0
-            for trial in range(args.trials):
-                try:
-                    start_submit = time.time()
-                    task = app()
-                    task.result()
-                    returned = time.time()
-
-                    data = (
-                        tag,
-                        start_submit,
-                        returned,
-                        target_workers,
-                        trial,
-                        app.__name__
-                    )
-                    # print('inserting {}'.format(str(data)))
-                    db.execute(f"""
-                        insert into
-                        "{table_name}"(monitor_tag, start_submit, returned, connected_workers, task, tag)
-                        values (?, ?, ?, ?, ?, ?)""", data
-                    )
-                    db.commit()
-                    t1 = (returned - start_submit) * 1000
-                    sum1 += t1
-                    # print("Running time is %.6f ms" % t1)
-                except Exception as e:
-                    print(e)
-            print("The average running time of {} {} is {}".format(tag, app.__name__, sum1/args.trials))
-
-        del dfk
+    for have_monitor, radio_mode in config_list:
+        for workers in worker_list:
+            for app in [noop, sleep10ms, sleep100ms]:
+            # for app in [noop]:
+                sum1 = 0
+                for trial in range(args.trials):
+                    try:
+                        t, monitor_tag = run_one_trail(have_monitor, radio_mode, workers, args.tasks_per_trial, trial, app)
+                        sum1 += t
+                    except Exception as e:
+                        import traceback
+                        traceback.print_exc()
+                        print(f"get exception in trial loop {e}")
+                print(f"The average running time of {monitor_tag} {app.__name__} with {workers} workers is {sum1/args.trials}")
 
