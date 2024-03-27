@@ -67,12 +67,12 @@ if __name__ == '__main__':
     for parsl_log, resource_logs in logs_mapping.items():
         # print(f'Parsl log: {parsl_log}')
         run_id = extract_run_id(parsl_log)
-        print(f'  - Run ID: {run_id}')
+        # print(f'  - Run ID: {run_id}')
         for resource_log in resource_logs:
             # print(f'  - Resource Monitor log: {resource_log}')
             send_time = extract_send_time(resource_log)
             # print(f'  - Send time: {send_time}')
-            print(f'  - Average send time: {sum(send_time) / len(send_time)}')
+            # print(f'  - Average send time: {sum(send_time) / len(send_time)}')
             # print(f'  - Max send time: {max(send_time)}')
             # print(f'  - Min send time: {min(send_time)}')
             db.execute(f"""insert into "{table_name}" values (

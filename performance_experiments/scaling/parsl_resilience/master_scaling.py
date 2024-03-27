@@ -88,11 +88,11 @@ def get_config(have_monitor, radio_mode, worker_per_exe):
             ],
             strategy='simple',
             app_cache=True, checkpoint_mode='task_exit',
-            retries=2,
+            retries=1,
             monitoring=MonitoringHub(
                             hub_address="localhost",
                             monitoring_debug=False,
-                            resource_monitoring_interval=1,
+                            resource_monitoring_interval=10,
             ),
             usage_tracking=True
         )
@@ -123,7 +123,7 @@ def get_config(have_monitor, radio_mode, worker_per_exe):
             ],
             strategy='simple',
             app_cache=True, checkpoint_mode='task_exit',
-            retries=2,
+            retries=1,
             usage_tracking=True
         )
     # print(config)
@@ -239,11 +239,11 @@ if __name__ == "__main__":
         app_name text)"""
     )
 
-    # config_list = [(False, ''), (True, 'htex'), (True, 'diaspora')]
-    config_list = [(True, 'diaspora')]
-    # worker_list = [1, 2, 4, 8, 16, 32, 64, 128] # max 160
+    config_list = [(True, 'diaspora'), (False, ''), (True, 'htex')]
+    # config_list = [(True, 'htex')]
+    worker_list = [1, 2, 4, 8, 16, 32, 64, 128] # max 160
     # worker_list = [8, 64, 128, 160] 
-    worker_list = [8, 64]
+    # worker_list = [8, 16]
 
     for have_monitor, radio_mode in config_list:
         for workers in worker_list:
@@ -259,4 +259,3 @@ if __name__ == "__main__":
                         traceback.print_exc()
                         print(f"get exception in trial loop {e}")
                 print(f"The average running time of {monitor_tag} {app.__name__} with {workers} workers is {sum1/args.trials}")
-

@@ -26,6 +26,7 @@ def cal_record(run_ids):
         # break
         if message_key_str in run_ids:
             record_per_workflow[message_key_str] = record_per_workflow.get(message_key_str, 0) + 1
+            # print(record_per_workflow)
 
 # 定义一个处理函数，当接收到超时信号时，它会抛出一个异常
 def handler(signum, frame):
@@ -39,7 +40,7 @@ if __name__ == '__main__':
 
     try:
         # 设置10秒的超时
-        signal.alarm(30)
+        signal.alarm(20)
             
         c = GlobusClient()
         topic = "radio-test"
@@ -55,6 +56,7 @@ if __name__ == '__main__':
         # 取消超时
         signal.alarm(0)
         pprint.pprint(record_per_workflow)
+        
         # 获取monitoring.db中resource表格中不同run_id的记录条数
         conn = sqlite3.connect('runinfo/monitoring.db')
         cursor = conn.cursor()
@@ -69,6 +71,8 @@ if __name__ == '__main__':
         table_name = "entry_cnt"
         print(f"table name: {table_name}")
         db = sqlite3.connect('data.db')
+        # 如果之前有这个表格，先删除
+        db.execute(f"drop table if exists {table_name}")
         db.execute(f"""create table if not exists "{table_name}"(
             run_id text,
             radio_type text,
@@ -87,3 +91,4 @@ if __name__ == '__main__':
                            VALUES (?, ?, ?, ?)""", (run_id, 'htex', app_name, record_num))
         conn.commit()
         conn.close()
+        
