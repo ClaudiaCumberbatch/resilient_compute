@@ -39,7 +39,7 @@ def get_config():
                     init_blocks=1,
                     min_blocks=1,
                     max_blocks=1,
-                    mem_per_node='1',
+                    worker_init='bash start_worker.sh',
                     launcher=SingleNodeLauncher(),
                 ),
                 block_error_handler=False,
@@ -61,7 +61,6 @@ def get_config():
                     init_blocks=1,
                     min_blocks=1,
                     max_blocks=1,
-                    mem_per_node='10',
                     launcher=SingleNodeLauncher(),
                 ),
                 block_error_handler=False,
@@ -97,9 +96,12 @@ def sleep2s():
 @python_app(executors=['htex_1'])
 def consume_memory():
     huge_memory_list = []
+    cnt = 0
     try:
         while True:
-            huge_memory_list.append('A' * 1024 * 1024 * 1000)  # 每次添加10MB
+            if cnt > 10:
+                break
+            huge_memory_list.append('A' * 1024 * 1024 * 1)  # 每次添加10MB
     except MemoryError:
         print("Memory exhausted!")
     finally:
@@ -107,9 +109,17 @@ def consume_memory():
         del huge_memory_list
     print("Finished attempting to consume memory.")
 
+@python_app(executors=['htex_1'])
+def exe_c():
+    import os
+    os.system("/home/cc/resilient_compute/resilience_test/mem_limit")
+
+# force a seg fault
+# fail with probability
+
 
 if __name__ == "__main__":
     config = get_config()
     dfk = parsl.load(config)
-    tasks = [throw_exp() for _ in range(0, 1)]
+    tasks = [exe_c() for _ in range(0, 1)]
     [t.result() for t in tasks]
