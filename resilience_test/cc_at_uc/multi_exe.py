@@ -39,7 +39,7 @@ def get_config():
                     init_blocks=1,
                     min_blocks=1,
                     max_blocks=1,
-                    worker_init='bash start_worker.sh',
+                    # worker_init='bash start_worker.sh',
                     launcher=SingleNodeLauncher(),
                 ),
                 block_error_handler=False,
@@ -68,6 +68,7 @@ def get_config():
             )
         ],
         strategy='simple',
+        resilience_strategy='fail_type',
         app_cache=True, checkpoint_mode='task_exit',
         retries=1,
         monitoring=MonitoringHub(
@@ -89,9 +90,9 @@ def throw_exp():
     raise Exception("This is an exception")
 
 @python_app
-def sleep2s():
+def sleep5s():
     import time
-    time.sleep(1)
+    time.sleep(5)
 
 @python_app(executors=['htex_1'])
 def consume_memory():
@@ -114,12 +115,9 @@ def exe_c():
     import os
     os.system("/home/cc/resilient_compute/resilience_test/mem_limit")
 
-# force a seg fault
-# fail with probability
-
 
 if __name__ == "__main__":
     config = get_config()
     dfk = parsl.load(config)
-    tasks = [exe_c() for _ in range(0, 1)]
+    tasks = [sleep5s() for _ in range(0, 1)]
     [t.result() for t in tasks]
