@@ -1,2 +1,4 @@
 runinfo/
 cmd*
+temp*
+__pychache__/

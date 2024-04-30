@@ -1,0 +1,4 @@
+  File "main.py", line 13
+    if (n := len(a)) > 2:
+          ^
+SyntaxError: invalid syntax

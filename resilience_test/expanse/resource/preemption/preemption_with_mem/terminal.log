@@ -1,0 +1,20 @@
+Traceback (most recent call last):
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/preemption/main.py", line 33, in <module>
+    [print(t.result()) for t in tasks]
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/preemption/main.py", line 33, in <listcomp>
+    [print(t.result()) for t in tasks]
+  File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 451, in result
+    return self.__get_result()
+  File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/szhou3/parsl_resilient/parsl/dataflow/dflow.py", line 320, in handle_exec_update
+    res = self._unwrap_remote_exception_wrapper(future)
+  File "/home/szhou3/parsl_resilient/parsl/dataflow/dflow.py", line 592, in _unwrap_remote_exception_wrapper
+    result.reraise()
+  File "/home/szhou3/parsl_resilient/parsl/app/errors.py", line 118, in reraise
+    raise v
+  File "/home/szhou3/parsl_resilient/parsl/app/errors.py", line 141, in wrapper
+    return func(*args, **kwargs)
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/preemption/main.py", line 19, in consume_memory
+    huge_memory_list.append('A' * 1024 * 1024 * 100)
+MemoryError
