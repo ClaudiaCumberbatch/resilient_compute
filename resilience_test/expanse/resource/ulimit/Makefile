@@ -7,7 +7,7 @@ clean:
 
 .PHONY: run
 run:
-	python main.py > terminal.log 2>&1
+	python main.py 2>&1 | tee terminal.log
 
 .PHONY: help
 help:

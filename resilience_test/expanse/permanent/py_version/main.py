@@ -15,6 +15,6 @@ def elephant():
 
 
 if __name__ == "__main__":
-    dfk = parsl.load(exp_config(worker_init='module load cpu; module load slurm; source activate parsl307'))
+    dfk = parsl.load(exp_config(worker_init='module load cpu/0.15.4; module load slurm; module load anaconda3/2020.11; source activate /home/szhou3/.conda/envs/parsl307'))
     tasks = [elephant()]
     [t.result() for t in tasks]
