@@ -15,7 +15,13 @@ from parsl.launchers import SrunLauncher
 
 from parsl.monitoring import MonitoringHub
 
-def exp_config(worker=1, mem=20, retry=0, walltime='00:10:00', exclusive=True, worker_init='module load cpu/0.15.4; module load slurm; module load anaconda3/2020.11; source activate /home/szhou3/.conda/envs/parsl310'):
+def exp_config(worker=1, 
+               mem=20, 
+               retry=0, 
+               walltime='00:10:00', 
+               exclusive=True, 
+               worker_init='module load cpu/0.15.4; module load slurm; module load anaconda3/2020.11; source activate /home/szhou3/.conda/envs/parsl310',
+               retry_handler=None):
     return Config(
         executors=[
             HighThroughputExecutor(
@@ -74,7 +80,8 @@ def exp_config(worker=1, mem=20, retry=0, walltime='00:10:00', exclusive=True, w
                         monitoring_debug=False,
                         resource_monitoring_interval=1,
         ),
-        usage_tracking=True
+        usage_tracking=True,
+        retry_handler=retry_handler
     )
 
 config = exp_config()

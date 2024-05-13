@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/permanent/dependency/main.py", line 24, in <module>
+    print(f1.result(), f2.result(), f3.result(), f4.result())
+  File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 458, in result
+    return self.__get_result()
+  File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/szhou3/parsl_resilient/parsl/dataflow/dflow.py", line 320, in handle_exec_update
+    res = self._unwrap_remote_exception_wrapper(future)
+  File "/home/szhou3/parsl_resilient/parsl/dataflow/dflow.py", line 592, in _unwrap_remote_exception_wrapper
+    result.reraise()
+  File "/home/szhou3/parsl_resilient/parsl/app/errors.py", line 118, in reraise
+    raise v
+  File "/home/szhou3/parsl_resilient/parsl/app/errors.py", line 141, in wrapper
+    return func(*args, **kwargs)
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/permanent/dependency/main.py", line 12, in fails
+    raise ValueError("Deliberate failure")
+ValueError: Deliberate failure

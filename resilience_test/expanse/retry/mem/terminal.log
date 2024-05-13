@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/retry/mem/main.py", line 29, in <module>
+    [t.result() for t in tasks]
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/retry/mem/main.py", line 29, in <listcomp>
+    [t.result() for t in tasks]
+  File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 458, in result
+    return self.__get_result()
+  File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/szhou3/parsl_resilient/parsl/dataflow/dflow.py", line 320, in handle_exec_update
+    res = self._unwrap_remote_exception_wrapper(future)
+  File "/home/szhou3/parsl_resilient/parsl/dataflow/dflow.py", line 590, in _unwrap_remote_exception_wrapper
+    result = future.result()
+  File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 451, in result
+    return self.__get_result()
+  File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
+    raise self._exception
+  File "/home/szhou3/parsl_resilient/parsl/executors/high_throughput/executor.py", line 484, in _queue_management_worker
+    s.reraise()
+  File "/home/szhou3/parsl_resilient/parsl/app/errors.py", line 118, in reraise
+    raise v
+  File "/home/szhou3/parsl_resilient/parsl/executors/high_throughput/process_worker_pool.py", line 385, in worker_watchdog
+    raise WorkerLost(worker_id, platform.node())
+parsl.executors.high_throughput.errors.WorkerLost: Task failure due to loss of worker 1 on host exp-9-55

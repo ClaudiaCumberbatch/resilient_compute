@@ -18,8 +18,8 @@ def open_many_files(limit):
         for i in range(limit):
             handles.append(open(f"/tmp/tempfile_{socket.gethostname()}_{i}.txt", "w"))
         return f"Opened {limit} files successfully"
-    except Exception as e:
-        return str(e)
+    # except Exception as e:
+    #     return str(e)
     finally:
         for handle in handles:
             handle.close()
