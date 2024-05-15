@@ -1,8 +1,6 @@
 Traceback (most recent call last):
-  File "/home/szhou3/resilient_compute/resilience_test/expanse/failure_simulation/permanent/divide_zero/main.py", line 18, in <module>
-    [t.result() for t in tasks]
-  File "/home/szhou3/resilient_compute/resilience_test/expanse/failure_simulation/permanent/divide_zero/main.py", line 18, in <listcomp>
-    [t.result() for t in tasks]
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/retry/ulimit/main.py", line 32, in <module>
+    print(result.result())
   File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 458, in result
     return self.__get_result()
   File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 403, in __get_result
@@ -15,6 +13,6 @@ Traceback (most recent call last):
     raise v
   File "/home/szhou3/parsl_resilient/parsl/app/errors.py", line 141, in wrapper
     return func(*args, **kwargs)
-  File "/home/szhou3/resilient_compute/resilience_test/expanse/failure_simulation/permanent/divide_zero/main.py", line 12, in div_zero
-    return 100/0
-ZeroDivisionError: division by zero
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/retry/ulimit/main.py", line 21, in open_many_files
+    handles.append(open(f"/tmp/tempfile_{socket.gethostname()}_{i}.txt", "w"))
+OSError: [Errno 23] Too many open files in system: '/tmp/tempfile_exp-9-55_543730.txt'

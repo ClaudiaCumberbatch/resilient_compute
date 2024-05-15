@@ -3,9 +3,12 @@ import sys
 import parsl
 from parsl.app.app import python_app
 
-module_path = '/home/szhou3/resilient_compute/resilience_test/expanse'
-sys.path.append(module_path)
+config_path = '/home/szhou3/resilient_compute/resilience_test/expanse/failure_simulation'
+sys.path.append(config_path)
+retry_path = '/home/szhou3/resilient_compute/resilience_test/expanse/retry'
+sys.path.append(retry_path)
 from expanse_config import exp_config
+from retry_config import resilient_retry
 
 @python_app
 def open_many_files(limit):
@@ -17,15 +20,13 @@ def open_many_files(limit):
         for i in range(limit):
             handles.append(open(f"/tmp/tempfile_{socket.gethostname()}_{i}.txt", "w"))
         return f"Opened {limit} files successfully"
-    # except Exception as e:
-    #     return str(e)
     finally:
         for handle in handles:
             handle.close()
 
 
 if __name__ == "__main__":
-    dfk = parsl.load(exp_config())
+    dfk = parsl.load(exp_config(retry=3, worker=3, exclusive=False, retry_handler=resilient_retry))
     file_limit = 548001
     result = open_many_files(file_limit)
     print(result.result())

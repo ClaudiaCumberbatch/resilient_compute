@@ -8,7 +8,7 @@ sys.path.append(config_path)
 retry_path = '/home/szhou3/resilient_compute/resilience_test/expanse/retry'
 sys.path.append(retry_path)
 from expanse_config import exp_config
-from retry_config import retry_different_executor
+from retry_config import resilient_retry
 
 @python_app
 def consume_memory():
@@ -24,6 +24,6 @@ def simple_task():
 
 
 if __name__ == "__main__":
-    dfk = parsl.load(exp_config(retry=1, worker=3, exclusive=False, retry_handler=retry_different_executor))
+    dfk = parsl.load(exp_config(retry=1, worker=3, exclusive=False, retry_handler=resilient_retry))
     tasks = [consume_memory(), simple_task()]
     [t.result() for t in tasks]
