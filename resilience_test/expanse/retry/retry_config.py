@@ -11,8 +11,7 @@ from kafka import TopicPartition
 
 # TODO: 1. Get a full list from python errors
 # 2. Dynamically update this pattern list?
-permanent_error_pattern_list = ['OSError',
-                                'ZeroDivisionError']
+from error_list import PERMANENT_ERROR_LIST
 
 def start_file_logger(filename, name=__name__, level=logging.DEBUG, format_string=None):
     """Add a stream log handler.
@@ -44,12 +43,9 @@ def start_file_logger(filename, name=__name__, level=logging.DEBUG, format_strin
     
     return logger
 
+# TODO: make it under runs/
 # set logger
-log_file = 'resilient_retry.log'
-if os.path.isfile(log_file):
-    with open(log_file, 'w') as file:
-        pass
-logger = start_file_logger(log_file, level=logging.INFO)
+
 
 def retry_different_executor(e: Exception,
                              taskrecord: TaskRecord) -> float:
@@ -96,10 +92,10 @@ def coarse_category(taskrecord: TaskRecord) -> str:
 
         if 'task_fail_history' in message_dict:
             error_info = message_dict['task_fail_history']
-            if any(pattern in error_info for pattern in permanent_error_pattern_list):
+            if any(pattern in error_info for pattern in PERMANENT_ERROR_LIST):
                 logger.info(f"{error_info} is a permanent error")
                 return 'permanent'
-            elif 'loss' in error_info:
+            elif 'OSError' in error_info or'loss' in error_info:
                 logger.info(f"{error_info} is a resource error")
                 return 'resource'
 
@@ -202,6 +198,19 @@ def large_mem_executor(taskrecord: TaskRecord, last_executor_info: dict) -> None
         logger.info(f"switch to {exe_res}")
     return
 
+logger_init_flag = False
+
+def init_logger(taskrecord: TaskRecord):
+    global logger, logger_init_flag
+    if not logger_init_flag:
+        log_file = "{}/resilient_retry.log".format(taskrecord['dfk'].run_dir)
+        # if exist, clear it
+        if os.path.isfile(log_file):
+            with open(log_file, 'w') as file:
+                pass      
+        logger = start_file_logger(log_file, level=logging.INFO)
+        logger_init_flag = True
+
 def resilient_retry(e: Exception,
                     taskrecord: TaskRecord) -> float:
     '''
@@ -210,6 +219,8 @@ def resilient_retry(e: Exception,
     2. If it's potentially a resource error, go through diaspora radio-test (resource info) 
     to figure out the more concrete reason.
     '''
+    init_logger(taskrecord)
+    logger.info("inside retry handler")
     cat = coarse_category(taskrecord)
     if cat == 'permanent':
         logger.info("permanent error, return to user")

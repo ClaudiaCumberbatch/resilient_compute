@@ -3,3 +3,5 @@ cmd*
 temp*
 __pycache__/
 test/
+runs/
+resilience_test/expanse/workflow/terminal.log

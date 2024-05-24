@@ -1,21 +1,5 @@
-core file size          (blocks, -c) 0
-data seg size           (kbytes, -d) unlimited
-scheduling priority             (-e) 0
-file size               (blocks, -f) unlimited
-pending signals                 (-i) 511113
-max locked memory       (kbytes, -l) unlimited
-max memory size         (kbytes, -m) unlimited
-open files                      (-n) 10000
-pipe size            (512 bytes, -p) 8
-POSIX message queues     (bytes, -q) 819200
-real-time priority              (-r) 0
-stack size              (kbytes, -s) unlimited
-cpu time               (seconds, -t) 15000
-max user processes              (-u) 2000
-virtual memory          (kbytes, -v) 8000000
-file locks                      (-x) unlimited
 Traceback (most recent call last):
-  File "/home/szhou3/resilient_compute/resilience_test/expanse/resource/ulimit/main.py", line 32, in <module>
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/failure_simulation/resource/ulimit/main.py", line 31, in <module>
     print(result.result())
   File "/home/szhou3/.conda/envs/parsl310/lib/python3.10/concurrent/futures/_base.py", line 458, in result
     return self.__get_result()
@@ -27,8 +11,8 @@ Traceback (most recent call last):
     result.reraise()
   File "/home/szhou3/parsl_resilient/parsl/app/errors.py", line 118, in reraise
     raise v
-  File "/home/szhou3/parsl_resilient/parsl/app/errors.py", line 141, in wrapper
-    return func(*args, **kwargs)
-  File "/home/szhou3/resilient_compute/resilience_test/expanse/resource/ulimit/main.py", line 19, in open_many_files
-    handles.append(open(f"/tmp/tempfile_{socket.gethostname()}_{i}.txt", "w"))
-OSError: [Errno 24] Too many open files: '/tmp/tempfile_login02_9926.txt'
+  File "/home/szhou3/parsl_resilient/parsl/app/errors.py", line 142, in wrapper
+    except Exception:
+  File "/home/szhou3/resilient_compute/resilience_test/expanse/failure_simulation/resource/ulimit/main.py", line 19, in open_many_files
+    return f"Opened {limit} files successfully"
+OSError: [Errno 23] Too many open files in system: '/tmp/tempfile_exp-9-56_545770.txt'

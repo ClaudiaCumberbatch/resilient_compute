@@ -3,7 +3,7 @@ import sys
 import parsl
 from parsl.app.app import python_app
 
-module_path = '/home/szhou3/resilient_compute/resilience_test/expanse'
+module_path = '/home/szhou3/resilient_compute/resilience_test/expanse/failure_simulation'
 sys.path.append(module_path)
 from expanse_config import exp_config
 
