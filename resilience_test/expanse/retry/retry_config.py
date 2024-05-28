@@ -3,6 +3,9 @@ import sys
 import json
 import os
 import time
+import subprocess
+import re
+import socket
 
 from parsl.dataflow.taskrecord import TaskRecord
 from parsl.providers import SlurmProvider
@@ -42,9 +45,6 @@ def start_file_logger(filename, name=__name__, level=logging.DEBUG, format_strin
     logger.addHandler(handler)
     
     return logger
-
-# TODO: make it under runs/
-# set logger
 
 
 def retry_different_executor(e: Exception,
@@ -95,7 +95,7 @@ def coarse_category(taskrecord: TaskRecord) -> str:
             if any(pattern in error_info for pattern in PERMANENT_ERROR_LIST):
                 logger.info(f"{error_info} is a permanent error")
                 return 'permanent'
-            elif 'OSError' in error_info or'loss' in error_info:
+            elif 'OSError' in error_info or 'loss' in error_info:
                 logger.info(f"{error_info} is a resource error")
                 return 'resource'
 
@@ -107,6 +107,28 @@ def coarse_category(taskrecord: TaskRecord) -> str:
 def time_str_to_seconds(time_str):
     h, m, s = map(int, time_str.split(':'))
     return h * 3600 + m * 60 + s
+
+
+def get_node_memory(node_name):
+    result = subprocess.run(['scontrol', 'show', 'node', node_name], capture_output=True, text=True)
+    
+    if result.returncode != 0:
+        raise Exception(f"Failed to get node information for {node_name}")
+
+    output = result.stdout
+    memory_info = {
+        'RealMemory': None,
+        'AllocMem': None,
+    }
+    real_memory_match = re.search(r'RealMemory=(\d+)', output)
+    alloc_memory_match = re.search(r'AllocMem=(\d+)', output)
+    
+    if real_memory_match:
+        memory_info['RealMemory'] = int(real_memory_match.group(1))
+    if alloc_memory_match:
+        memory_info['AllocMem'] = int(alloc_memory_match.group(1))
+    
+    return memory_info
 
 def which_resource_category(taskrecord: TaskRecord) -> str:
     # unknown, walltime, memory
@@ -144,6 +166,8 @@ def which_resource_category(taskrecord: TaskRecord) -> str:
             if message.offset >= last_offset:
                 break
             else:
+                global hostname
+                hostname = message_dict['hostname']
                 continue
 
         last_executor_info[message_key] = message_dict
@@ -169,8 +193,16 @@ def which_resource_category(taskrecord: TaskRecord) -> str:
         # so here use peak mem instead of last mem to determine whether it's a mem error
         mem_used = int(peak_mem_info[taskrecord['executor']]['psutil_process_memory_resident'])/(1024**3)
         mem = current_provider.mem_per_node # unit G
+        # Default mem_per_node is None.
+        # So if got None here, use function get_node_memory() to get the information.
+        if not mem:
+            memory_info = get_node_memory(hostname)
+            logger.info(f"Current Node {hostname} Memory Information: RealMemory: {memory_info['RealMemory']} MB, AllocMem: {memory_info['AllocMem']} MB")
+            mem = memory_info['AllocMem']/1024
+
         logger.info(f"mem_used = {mem_used}, mem = {mem}")
-        if mem_used > mem*0.6: # TODO: make threshold configurable? other methods to determine out-of-mem?
+        # TODO: make threshold configurable? other methods to determine out-of-mem?
+        if mem_used > mem*0.6:
             logger.info(f"{mem_used} > {mem}*0.6, run out of memory")
             large_mem_executor(taskrecord, last_executor_info)
             return 'memory'
@@ -188,7 +220,12 @@ def large_mem_executor(taskrecord: TaskRecord, last_executor_info: dict) -> None
         current_provider = executor.provider
         if isinstance(current_provider, SlurmProvider):
             mem_used = int(info['psutil_process_memory_resident']) / (1024**3)
-            mem = current_provider.mem_per_node # unit G
+            mem = current_provider.mem_per_node # unit G, possibly None
+            if not mem:
+                hn = info['hostname']
+                memory_info = get_node_memory(hn)
+                logger.info(f"Current Node {hostname} Memory Information: RealMemory: {memory_info['RealMemory']} MB, AllocMem: {memory_info['AllocMem']} MB")
+                mem = memory_info['AllocMem']/1024
             rest_mem_dic[executor_name] = mem - mem_used
             if rest_mem_dic[executor_name] > max_rest:
                 max_rest = rest_mem_dic[executor_name]
