@@ -4,4 +4,8 @@ temp*
 __pycache__/
 test/
 runs/
+old/
+with/
+without/
+*log
 resilience_test/expanse/workflow/terminal.log
