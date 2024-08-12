@@ -1,5 +1,6 @@
 from parsl.dataflow.taskrecord import TaskRecord
 from categorization import *
+from resource_control import *
 
 import logging
 import os
@@ -56,20 +57,17 @@ def resilient_retry(e: Exception,
         logger.info("Task not launched, return to user")
         return sys.maxsize
     
+    # Invoke Categorization Module
     resource_analyzer = Resource_Analyzer(taskrecord, logger)
     error_info = resource_analyzer.get_error_info()
     if is_terminate(error_info):
         logger.info("permanent error, return to user")
         return sys.maxsize
     else:
-        logger.info("not permanent error")
-        root_cause = resource_analyzer.which_root_cause()
-        logger.info(f"root cause is {root_cause}")
-        if root_cause == "resource_starvation":
-            resource_list = resource_analyzer.which_resources()
-            logger.info(f"resource error: {resource_list}")
-        elif root_cause == "machine_shutdown":
-            machine_list = resource_analyzer.which_machines()
-            logger.info(f"machine error: {machine_list}")
+        root_cause, bad_list = resource_analyzer.get_rootcause_and_list()
+        # Invoke Resource Control Module
+        resource_controler = Resource_Controller(taskrecord, logger)
+        resource_controler.control(root_cause, bad_list)
+        
     # return 1
     return sys.maxsize

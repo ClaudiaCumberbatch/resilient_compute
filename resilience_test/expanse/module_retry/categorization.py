@@ -5,11 +5,13 @@ from logging import Logger
 import re
 import subprocess
 import time
+from typing import Tuple
 
 from parsl.dataflow.taskrecord import TaskRecord
 from parsl.providers import SlurmProvider
 
 from exception_msg_lib import ERROR_LIST
+from utils import *
 
 def is_terminate(error_info: str) -> bool: # TODO: exception?
     """
@@ -42,7 +44,7 @@ class Resource_Analyzer():
             "WALLTIME",
             "ULIMIT", 
             "UNKNOW"
-        ] # TODO: Make configurable
+        ] # TODO: 1. Make configurable; 2. Write to enum.
         self.bad_machine_list = [] # node
         self.logger.info("resource analyzer initialized")
 
@@ -56,34 +58,15 @@ class Resource_Analyzer():
             return True
         else:
             return False
-
-    def get_consumer_and_last_offset(self, topic: str):
-        # Create consumer
-        consumer = KafkaConsumer(topic)
-
-        # Fix start and end offset
-        partition = 0
-        topic_partition = TopicPartition(topic, partition)
-        # TODO: when comes to resources, start_time should be the-last-gasp-of-death time
-        start_time = self.taskrecord['try_time_launched'].timestamp() 
-        start_offsets = consumer.offsets_for_times({topic_partition: start_time*1000})
-        start_offset = start_offsets[topic_partition].offset if start_offsets[topic_partition] else None
-        if start_offset:
-            consumer.seek(topic_partition, start_offset)
-        else:
-            # no record after start_time
-            return None
-        
-        end_offsets = consumer.end_offsets([topic_partition])
-        last_offset = end_offsets[topic_partition] - 1
-
-        return consumer, last_offset
         
     def get_error_info(self) -> str:
         """
         Create a KafkaConsumer and fetch error info.
         """
-        consumer, last_offset = self.get_consumer_and_last_offset(topic="failure-info")
+        consumer, last_offset = get_consumer_and_last_offset(
+            taskrecord=self.taskrecord, 
+            topic="failure-info"
+        )
 
         # Fetch error info
         for message in consumer:
@@ -161,7 +144,10 @@ class Resource_Analyzer():
         if self.root_cause != "resource_starvation":
             return []
         else:
-            consumer, last_offset = self.get_consumer_and_last_offset(topic="radio-test")
+            consumer, last_offset = get_consumer_and_last_offset(
+                taskrecord=self.taskrecord, 
+                topic="resilience-executor"
+            )
 
         # Fetch current usage value of each type of resource
         last_executor_info = {}
@@ -170,17 +156,12 @@ class Resource_Analyzer():
             self.logger.info(f"msg: {message}")
             message_key = message.key.decode('utf-8')
             message_dict = json.loads(message.value.decode('utf-8'))
-            # Only focus on the aggregated info of current executor.
-            # 'pid' in message_dict indicates it's not aggregated info.
-            if 'pid' in message_dict:
-                if message.offset >= last_offset:
-                    break
-                else:
-                    # Get node name
-                    self.hostname = message_dict['hostname']
-                    continue
+            
             if message_key != self.taskrecord['executor']:
                 continue
+
+            # Get node name
+            self.hostname = message_dict['hostname']
             
             # Keep the last one for walltime verification
             last_executor_info[message_key] = message_dict
@@ -216,14 +197,14 @@ class Resource_Analyzer():
         if self.root_cause != "machine_shutdown":
             return []
         else:
-            consumer, last_offset = self.get_consumer_and_last_offset(topic="radio-test")
+            consumer, last_offset = get_consumer_and_last_offset(
+                taskrecord=self.taskrecord,
+                topic="resilience-manager"
+            )
 
             for message in consumer:
                 message_dict = json.loads(message.value.decode('utf-8'))
-                if 'pid' in message_dict:
-                    # Get node name
-                    # TODO: here traversing is slow
-                    self.hostname = message_dict['hostname']
+                self.hostname = message_dict['hostname']
                 
                 if message.offset >= last_offset:
                     break
@@ -231,3 +212,15 @@ class Resource_Analyzer():
             self.bad_machine_list.append(self.hostname)
 
         return self.bad_machine_list
+
+
+    def get_rootcause_and_list(self) -> Tuple[str, list]:
+        root_cause = self.which_root_cause()
+        if root_cause == "resource_starvation":
+            resource_list = self.which_resources()
+            self.logger.info(f"resource error: {resource_list}")
+            return root_cause, resource_list
+        elif root_cause == "machine_shutdown":
+            machine_list = self.which_machines()
+            self.logger.info(f"machine error: {machine_list}")
+            return root_cause, machine_list
