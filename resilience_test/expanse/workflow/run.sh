@@ -1,15 +1,15 @@
 #!/bin/bash
 
 log_file="without.log"
-# workflows=("mapreduce")
-# failure_rates=("0.3" "0.5" "0.7")
-failure_types=("dependency" "divide_zero" "environment" "memory" "ulimit") # "walltime" "simple"
-repeat=5
+workflows=("mapreduce")
+failure_rates=("0.2")
+failure_types=("dependency" "divide_zero" "environment" "manager_kill" "memory" "node_kill" "ulimit" "worker_kill") # "walltime"
+repeat=10
 
 # log_file="test.log"
-workflows=("mapreduce")
-failure_rates=("0.25")
-# failure_types=("divide_zero")
+# workflows=("mapreduce")
+# failure_rates=("0.5")
+# failure_types=("node_kill")
 # repeat=1
 
 date > $log_file
