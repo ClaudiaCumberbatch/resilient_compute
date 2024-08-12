@@ -1,9 +1,11 @@
+import copy
 import logging
 import sys
 import json
 import os
 import time
 import subprocess
+import random
 import re
 import socket
 
@@ -57,7 +59,7 @@ def retry_different_executor(e: Exception,
     return 1
 
 def coarse_category(taskrecord: TaskRecord) -> str:
-    # unknown, permanent, resource
+    # unknown, permanent, resource, executor
     topic = "failure-info"
     consumer = KafkaConsumer(topic)
     logger.warning(f"Creating Kafka consumer for {topic}")
@@ -80,7 +82,7 @@ def coarse_category(taskrecord: TaskRecord) -> str:
     logger.warning(f"last offset = {last_offset}")
 
     for message in consumer:
-        logger.warning("Received message: {}".format(message))
+        # logger.warning("Received message: {}".format(message))
         message_key = message.key.decode('utf-8')
         message_dict = json.loads(message.value.decode('utf-8'))
         if 'task_id' in message_dict:
@@ -98,6 +100,12 @@ def coarse_category(taskrecord: TaskRecord) -> str:
             elif 'OSError' in error_info or 'loss' in error_info:
                 logger.info(f"{error_info} is a resource error")
                 return 'resource'
+            elif 'ManagerLost' in error_info:
+                logger.info(f"{error_info} is a executor error")
+                # blacklist current executor
+                s = BlacklistSingleton(taskrecord)
+                s.blacklist(taskrecord['executor'])
+                return 'executor'
 
         if message.offset >= last_offset:
             break
@@ -158,7 +166,7 @@ def which_resource_category(taskrecord: TaskRecord) -> str:
     last_executor_info = {}
     peak_mem_info = {}
     for message in consumer:
-        logger.warning("Received message: {}".format(message))
+        # logger.warning("Received message: {}".format(message))
         message_key = message.key.decode('utf-8')
         message_dict = json.loads(message.value.decode('utf-8'))
         # only focus on executor info
@@ -189,7 +197,7 @@ def which_resource_category(taskrecord: TaskRecord) -> str:
             logger.info(f"{run_time} > {walltime}, executor hit walltime limit")
             return 'walltime'
         
-        # one run out of memory, the process will be killed, so the value of used mem will drop
+        # once run out of memory, the process will be killed, so the value of used mem will drop
         # so here use peak mem instead of last mem to determine whether it's a mem error
         mem_used = int(peak_mem_info[taskrecord['executor']]['psutil_process_memory_resident'])/(1024**3)
         mem = current_provider.mem_per_node # unit G
@@ -204,12 +212,12 @@ def which_resource_category(taskrecord: TaskRecord) -> str:
         # TODO: make threshold configurable? other methods to determine out-of-mem?
         if mem_used > mem*0.6:
             logger.info(f"{mem_used} > {mem}*0.6, run out of memory")
-            large_mem_executor(taskrecord, last_executor_info)
+            choose_large_mem_executor(taskrecord, last_executor_info)
             return 'memory'
 
     return 'unknown'
 
-def large_mem_executor(taskrecord: TaskRecord, last_executor_info: dict) -> None:
+def choose_large_mem_executor(taskrecord: TaskRecord, last_executor_info: dict) -> None:
     # switch to the executor with the max rest memory
     rest_mem_dic = {}
     max_rest = -sys.maxsize
@@ -248,6 +256,50 @@ def init_logger(taskrecord: TaskRecord):
         logger = start_file_logger(log_file, level=logging.INFO)
         logger_init_flag = True
 
+class BlacklistSingleton:
+    # TODO: responsible for all the executor chosen functions?
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if not cls._instance:
+            cls._instance = super(BlacklistSingleton, cls).__new__(cls)
+        return cls._instance
+    
+    def __init__(self, taskrecord: TaskRecord):
+        if not hasattr(self, 'initialized'):
+            self.initialized = True
+            self.nice_executor_names = list(taskrecord['dfk'].executors.keys())
+            logger.info(f"singleton executors are {self.nice_executor_names}")
+    
+    def have_nice_executors(self) -> bool:
+        if len(self.nice_executor_names) == 0:
+            return False
+        elif len(self.nice_executor_names) == 1 and '_parsl_internal' in self.nice_executor_names:
+            return False
+        else:
+            return True
+
+    def blacklist(self, executor_name: str):
+        if not self.have_nice_executors():
+            return
+        if executor_name in self.nice_executor_names:
+            self.nice_executor_names.remove(executor_name)
+            logger.info(f"blacklist executor {executor_name}")
+    
+    def choose_nice_executor(self, taskrecord: TaskRecord) -> bool:
+        if not self.have_nice_executors():
+            logger.info("no avaliable executors")
+            return False
+        else:
+            dfk = taskrecord['dfk']
+            choices = {k: v for k, v in dfk.executors.items() 
+                       if k != '_parsl_internal' 
+                       and k!= taskrecord['executor']
+                       and k in self.nice_executor_names}
+            new_exe = random.choice(list(choices.keys()))
+            taskrecord['executor'] = new_exe
+            return True
+
 def resilient_retry(e: Exception,
                     taskrecord: TaskRecord) -> float:
     '''
@@ -257,7 +309,7 @@ def resilient_retry(e: Exception,
     to figure out the more concrete reason.
     '''
     init_logger(taskrecord)
-    logger.info("inside retry handler")
+    s = BlacklistSingleton(taskrecord)
     cat = coarse_category(taskrecord)
     if cat == 'permanent':
         logger.info("permanent error, return to user")
@@ -272,6 +324,14 @@ def resilient_retry(e: Exception,
         else:
             logger.info("unknown resource error")
             return 1
+    elif cat == 'executor':
+        # ManagerLost
+        success = s.choose_nice_executor(taskrecord)
+        if success:
+            return 1
+        else:
+            logger.info("no available executor, return to user")
+            return sys.maxsize
     else:
         logger.info(f"category is {cat}")
         return 1
