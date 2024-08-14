@@ -1,6 +1,7 @@
-from typing import Tuple
 from kafka import TopicPartition
 from diaspora_event_sdk import KafkaConsumer
+import subprocess
+from typing import Tuple
 
 from parsl.dataflow.taskrecord import TaskRecord
 
@@ -30,3 +31,27 @@ def get_consumer_and_last_offset(
     last_offset = end_offsets[topic_partition] - 1
 
     return consumer, last_offset
+
+
+def time_str_to_seconds(time_str) -> int:
+    """
+    For Walltime comparison.
+    """
+    h, m, s = map(int, time_str.split(':'))
+    return h * 3600 + m * 60 + s
+
+
+def ping_test(hostname: str) -> bool:
+    """
+    Check whether the node is alive.
+    """
+    if not hostname:
+        return False
+    
+    for _ in range(3):
+        result = subprocess.run(['ping', '-c', '1', hostname], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if result.returncode == 0:
+            return True
+        
+    return False

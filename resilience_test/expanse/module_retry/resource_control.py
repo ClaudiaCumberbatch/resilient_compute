@@ -1,8 +1,10 @@
 import json
 from logging import Logger
+import time
 from typing import Tuple
 
 from parsl.dataflow.taskrecord import TaskRecord
+from parsl.providers import SlurmProvider
 
 from utils import *
 
@@ -50,8 +52,15 @@ class Resource_Controller():
                 elif hostname in self.node_list:
                     self.node_list.remove(hostname)
             if "WALLTIME" in bad_dict.keys():
-                # TODO
-                pass
+                current_provider = self.taskrecord['dfk'].executors[self.taskrecord['executor']].provider
+                if isinstance(current_provider, SlurmProvider): # TODO: other providers
+                    run_time = time.time() - msg_dict['start_time']
+                    walltime = time_str_to_seconds(current_provider.walltime)
+                    self.logger.info(f"time_rest is {walltime - run_time}, time requires is {bad_dict['WALLTIME']}")
+                    if walltime - run_time > bad_dict["WALLTIME"]:
+                        self.node_list.append(hostname)
+                    elif hostname in self.node_list:
+                        self.node_list.remove(hostname)    
         
         return self.node_list
 
@@ -63,7 +72,8 @@ class Resource_Controller():
         if root_cause == "resource_starvation":
             # now the bad_list is a dict containing starved resource types and peak values, but can also be empty
             if bad_list is not {}:
-                node_list = self.get_satisfying_node(bad_list)
+                node_list = self.get_satisfying_node(bad_list) 
+                # TODO: get_satisfying_executor basically the same
             return node_list, []
    
         elif root_cause == "machine_shutdown":

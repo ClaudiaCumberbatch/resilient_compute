@@ -32,9 +32,10 @@ class Resource_Analyzer():
     3. If machine shutdown, which machine?
     """
     def __init__(self, taskrecord: TaskRecord, logger: Logger) -> None:
-        self.hostname = None
+        self.hostname = "exp-9-56" # TODO: should be None. This is only for test walltime
         self.taskrecord = taskrecord
         self.logger = logger
+        self.error_info = None
         self.root_cause = None # "resource_starvation" or "machine_shutdown"
         self.starved_type_dict = {} # the key of this dict is the subset of self.STARVE
         self.STARVE = [
@@ -63,10 +64,15 @@ class Resource_Analyzer():
         """
         Create a KafkaConsumer and fetch error info.
         """
+        if self.error_info:
+            return self.error_info
+        
         consumer, last_offset = get_consumer_and_last_offset(
             taskrecord=self.taskrecord, 
             topic="failure-info"
         )
+        if not consumer:
+            return None
 
         # Fetch error info
         for message in consumer:
@@ -94,12 +100,20 @@ class Resource_Analyzer():
         """
         "resource_starvation" or "machine_shutdown"
         """
-        error_info = self.get_error_info()
-        if error_info:
-            if 'ManagerLost' in error_info:
-                self.root_cause = "machine_shutdown"
-            else:
-                self.root_cause = "resource_starvation"
+        # TODO: ping test needs hostname too!!!
+        if not ping_test(self.hostname):
+            self.root_cause = "machine_shutdown"
+        else:
+            self.root_cause = "resource_starvation"
+
+        # error_info = self.get_error_info()
+        # if error_info:
+        #     # TODO: need other info to determine machine_shutdown
+        #     # walltime limit will also trigger ManagerLost
+        #     if 'ManagerLost' in error_info: 
+        #         self.root_cause = "machine_shutdown"
+        #     else:
+        #         self.root_cause = "resource_starvation"
         return self.root_cause
 
 
@@ -123,13 +137,6 @@ class Resource_Analyzer():
             memory_info['AllocMem'] = int(alloc_memory_match.group(1))
         return memory_info
     
-    def time_str_to_seconds(self, time_str) -> int:
-        """
-        For Walltime comparison.
-        """
-        h, m, s = map(int, time_str.split(':'))
-        return h * 3600 + m * 60 + s
-
     
     def which_resources(self) -> dict:
         """
@@ -183,7 +190,7 @@ class Resource_Analyzer():
         current_provider = self.taskrecord['dfk'].executors[self.taskrecord['executor']].provider
         if isinstance(current_provider, SlurmProvider): # TODO: other providers
             run_time = time.time() - last_executor_info[self.hostname]['start_time']
-            walltime = self.time_str_to_seconds(current_provider.walltime)
+            walltime = time_str_to_seconds(current_provider.walltime)
             if run_time > walltime:
                 self.add2starved("WALLTIME", run_time)
 
@@ -204,6 +211,7 @@ class Resource_Analyzer():
 
             for message in consumer:
                 message_dict = json.loads(message.value.decode('utf-8'))
+                # TODO: this is inaccurate. we don't know the hostname of the node for this task.
                 self.hostname = message_dict['hostname']
                 
                 if message.offset >= last_offset:
@@ -224,3 +232,5 @@ class Resource_Analyzer():
             machine_list = self.which_machines()
             self.logger.info(f"machine error: {machine_list}")
             return root_cause, machine_list
+        else:
+            return None
