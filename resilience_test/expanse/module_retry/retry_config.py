@@ -1,6 +1,7 @@
 from parsl.dataflow.taskrecord import TaskRecord
 from categorization import *
 from resource_control import *
+from hierarchical_retry import *
 
 import logging
 import os
@@ -75,6 +76,6 @@ def resilient_retry(e: Exception,
         logger.info(f"executor list: {executor_list}")
 
         # Invoke Retry Module
-        
-    # return 1
-    return sys.maxsize
+        retry_controller = Retry_Controller(taskrecord, logger)
+        taskrecord = retry_controller.update_taskrecord(node_list, executor_list)
+        return retry_controller.get_cost()
