@@ -67,7 +67,8 @@ def resilient_retry(e: Exception,
         root_cause, bad_list = resource_analyzer.get_rootcause_and_list()
         # Invoke Resource Control Module
         resource_controler = Resource_Controller(taskrecord, logger)
-        resource_controler.control(root_cause, bad_list)
-        
+        node_list, executor_list = resource_controler.get_suggestions(root_cause, bad_list)
+        logger.info(f"node list: {node_list}")
+        logger.info(f"executor list: {executor_list}")
     # return 1
     return sys.maxsize

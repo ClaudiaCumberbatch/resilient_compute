@@ -36,7 +36,7 @@ class Resource_Analyzer():
         self.taskrecord = taskrecord
         self.logger = logger
         self.root_cause = None # "resource_starvation" or "machine_shutdown"
-        self.starved_type_list = [] # subset of self.STARVE
+        self.starved_type_dict = {} # the key of this dict is the subset of self.STARVE
         self.STARVE = [
             "CPU", 
             "DISK", 
@@ -48,13 +48,13 @@ class Resource_Analyzer():
         self.bad_machine_list = [] # node
         self.logger.info("resource analyzer initialized")
 
-    def add2starved(self, type: str) -> bool:
+    def add2starved(self, type: str, peak_value: float) -> bool:
         """
-        Add starved type to self.starved_type_list.
+        Add starved type to self.starved_type_dict.
         Return whether it's a successful append.
         """
         if type.upper() in self.STARVE:
-            self.starved_type_list.append(type.upper())
+            self.starved_type_dict[type.upper()] = peak_value
             return True
         else:
             return False
@@ -131,7 +131,7 @@ class Resource_Analyzer():
         return h * 3600 + m * 60 + s
 
     
-    def which_resources(self) -> list:
+    def which_resources(self) -> dict:
         """
         Compare the already used value with the overall value of:
         [] CPU, 
@@ -146,8 +146,9 @@ class Resource_Analyzer():
         else:
             consumer, last_offset = get_consumer_and_last_offset(
                 taskrecord=self.taskrecord, 
-                topic="resilience-executor"
+                topic="resilience-manager"
             )
+            self.logger.info(f"last offset is {last_offset}")
 
         # Fetch current usage value of each type of resource
         last_executor_info = {}
@@ -157,10 +158,9 @@ class Resource_Analyzer():
             message_key = message.key.decode('utf-8')
             message_dict = json.loads(message.value.decode('utf-8'))
             
-            if message_key != self.taskrecord['executor']:
-                continue
-
-            # Get node name
+            # if message_key != self.taskrecord['executor']:
+            #     continue
+            # TODO: This is inaccurate. How can a task know its hostname?
             self.hostname = message_dict['hostname']
             
             # Keep the last one for walltime verification
@@ -178,16 +178,16 @@ class Resource_Analyzer():
         mem_total = self.get_node_memory(self.hostname)['AllocMem']/1024
         mem_used = int(max_values['psutil_process_memory_resident'])/(1024**3)
         if mem_used > mem_total*0.6: # TODO: make threshold configurable? other methods to determine out-of-mem?
-            self.add2starved("MEMORY")
+            self.add2starved("MEMORY", mem_used)
 
         current_provider = self.taskrecord['dfk'].executors[self.taskrecord['executor']].provider
         if isinstance(current_provider, SlurmProvider): # TODO: other providers
-            run_time = time.time() - last_executor_info[self.taskrecord['executor']]['start_time']
+            run_time = time.time() - last_executor_info[self.hostname]['start_time']
             walltime = self.time_str_to_seconds(current_provider.walltime)
             if run_time > walltime:
-                self.add2starved("WALLTIME")
+                self.add2starved("WALLTIME", run_time)
 
-        return self.starved_type_list
+        return self.starved_type_dict
     
 
     def which_machines(self) -> list:
@@ -214,12 +214,12 @@ class Resource_Analyzer():
         return self.bad_machine_list
 
 
-    def get_rootcause_and_list(self) -> Tuple[str, list]:
+    def get_rootcause_and_list(self) -> Tuple[str, list] | Tuple[str, dict]:
         root_cause = self.which_root_cause()
         if root_cause == "resource_starvation":
-            resource_list = self.which_resources()
-            self.logger.info(f"resource error: {resource_list}")
-            return root_cause, resource_list
+            resource_dict = self.which_resources()
+            self.logger.info(f"resource error: {resource_dict}")
+            return root_cause, resource_dict
         elif root_cause == "machine_shutdown":
             machine_list = self.which_machines()
             self.logger.info(f"machine error: {machine_list}")
