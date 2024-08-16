@@ -59,12 +59,12 @@ def resilient_retry(e: Exception,
         return sys.maxsize
     
     # Invoke Categorization Module
-    resource_analyzer = Resource_Analyzer(taskrecord, logger)
-    error_info = resource_analyzer.get_error_info()
+    error_info = repr(e)
     if is_terminate(error_info):
         logger.info("permanent error, return to user")
         return sys.maxsize
     else:
+        resource_analyzer = Resource_Analyzer(taskrecord, logger)
         root_cause, bad_list = resource_analyzer.get_rootcause_and_list()
         if not root_cause:
             return sys.maxsize

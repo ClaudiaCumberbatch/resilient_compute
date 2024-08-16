@@ -1,5 +1,6 @@
-from kafka import TopicPartition
 from diaspora_event_sdk import KafkaConsumer
+import json
+from kafka import TopicPartition
 import subprocess
 from typing import Tuple
 
@@ -55,3 +56,23 @@ def ping_test(hostname: str) -> bool:
             return True
         
     return False
+
+def get_task_hostname(taskrecord: TaskRecord) -> str:
+    """
+    Read radio-test topic in DEF, get hostname according to current task_id and try_id.
+    TODO: possibly be a list
+    """
+    consumer, last_offset = get_consumer_and_last_offset(
+        taskrecord=taskrecord,
+        topic="radio-test"
+    )
+
+    for message in consumer:
+        message_dict = json.loads(message.value.decode('utf-8'))
+        if message_dict['task_id'] == taskrecord['id'] and message_dict['try_id'] == taskrecord['try_id']:
+            return message_dict['hostname']
+
+        if message.offset >= last_offset:
+                break
+        
+    return None

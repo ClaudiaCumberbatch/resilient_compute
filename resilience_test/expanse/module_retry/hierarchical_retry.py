@@ -11,7 +11,8 @@ class Retry_Controller():
 
     def update_taskrecord(self, node_list: list, executor_list: list) -> TaskRecord:
         # TODO: how to suggest node to a task?
-        # TODO: can we add retry history in taskrecord?
+        # 1. directly update the executor
+        # 2. put suggested node_list into taskrecord. what about resource specification?
         return self.taskrecord
     
     def get_cost(self) -> int:

@@ -13,7 +13,7 @@ from parsl.providers import SlurmProvider
 from exception_msg_lib import ERROR_LIST
 from utils import *
 
-def is_terminate(error_info: str) -> bool: # TODO: exception?
+def is_terminate(error_info: str) -> bool:
     """
     Determine whether a failure is terminate 
     by compare the error_info with exception_msg_lib.
@@ -32,7 +32,7 @@ class Resource_Analyzer():
     3. If machine shutdown, which machine?
     """
     def __init__(self, taskrecord: TaskRecord, logger: Logger) -> None:
-        self.hostname = "exp-9-56" # TODO: should be None. This is only for test walltime
+        self.hostname = get_task_hostname(taskrecord)
         self.taskrecord = taskrecord
         self.logger = logger
         self.error_info = None
@@ -167,8 +167,6 @@ class Resource_Analyzer():
             
             # if message_key != self.taskrecord['executor']:
             #     continue
-            # TODO: This is inaccurate. How can a task know its hostname?
-            self.hostname = message_dict['hostname']
             
             # Keep the last one for walltime verification
             last_executor_info[message_key] = message_dict
@@ -199,6 +197,7 @@ class Resource_Analyzer():
 
     def which_machines(self) -> list:
         """
+        !! deprecate this
         Add bad node name to list.
         """
         if self.root_cause != "machine_shutdown":
@@ -228,7 +227,7 @@ class Resource_Analyzer():
             resource_dict = self.which_resources()
             self.logger.info(f"resource error: {resource_dict}")
             return root_cause, resource_dict
-        elif root_cause == "machine_shutdown":
+        elif root_cause == "machine_shutdown": # TODO: deprecate this
             machine_list = self.which_machines()
             self.logger.info(f"machine error: {machine_list}")
             return root_cause, machine_list
