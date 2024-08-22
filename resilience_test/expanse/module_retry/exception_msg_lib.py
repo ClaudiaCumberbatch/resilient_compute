@@ -80,6 +80,7 @@ ERROR_LIST = [
     'AttributeError',
     'BufferError',
     'EOFError',
+    'ImportError',
     'ModuleNotFoundError',
     'IndexError',
     'KeyError',

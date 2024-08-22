@@ -60,6 +60,7 @@ def resilient_retry(e: Exception,
     
     # Invoke Categorization Module
     error_info = repr(e)
+    logger.info(f"error info is {error_info}")
     if is_terminate(error_info):
         logger.info("permanent error, return to user")
         return sys.maxsize

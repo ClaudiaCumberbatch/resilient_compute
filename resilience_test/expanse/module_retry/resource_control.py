@@ -28,6 +28,7 @@ class Resource_Controller():
         self.logger = logger
         self.node_list = []
         self.executor_list = []
+        self.logger.info("resource controller initialized")
 
     def get_satisfying_list(self, is_node: bool, bad_dict: dict) -> list:
         """
@@ -36,8 +37,10 @@ class Resource_Controller():
         """
         if is_node:
             topic = "resilience-manager"
+            l = self.node_list
         else:
             topic = "resilience-executor"
+            l = self.executor_list
 
         # Get resource utilization
         consumer, last_offset = get_consumer_and_last_offset(
@@ -47,13 +50,16 @@ class Resource_Controller():
         # Get last record of each node
         last_node_info = {}
         for message in consumer:
-            self.logger.info(f"msg in get_satisfying_node: {message}")
+            if message.offset > last_offset:
+                break
+
+            # self.logger.info(f"msg in get_satisfying_node: {message}")
             message_key = message.key.decode('utf-8')
             message_dict = json.loads(message.value.decode('utf-8'))
-            last_node_info[message_key] = message_dict
+            if is_node and message_dict['executor_label'] != self.taskrecord['executor']:
+                continue
 
-            if message.offset >= last_offset:
-                break
+            last_node_info[message_key] = message_dict
 
         # Choose the satisfying ones according to bad_list
         for hostname, msg_dict in last_node_info.items():
@@ -62,9 +68,9 @@ class Resource_Controller():
                 mem_total = mem_used/msg_dict['psutil_process_memory_percent']*100
                 self.logger.info(f"mem_rest is {mem_total - mem_used}, mem requires is {bad_dict['MEMORY']}")
                 if mem_total - mem_used > bad_dict["MEMORY"]: # the rest mem is enough
-                    self.node_list.append(hostname)
-                elif hostname in self.node_list:
-                    self.node_list.remove(hostname)
+                    l.append(hostname)
+                elif hostname in l:
+                    l.remove(hostname)
             if "WALLTIME" in bad_dict.keys():
                 current_provider = self.taskrecord['dfk'].executors[self.taskrecord['executor']].provider
                 if isinstance(current_provider, SlurmProvider): # TODO: other providers
@@ -72,11 +78,16 @@ class Resource_Controller():
                     walltime = time_str_to_seconds(current_provider.walltime)
                     self.logger.info(f"time_rest is {walltime - run_time}, time requires is {bad_dict['WALLTIME']}")
                     if walltime - run_time > bad_dict["WALLTIME"]:
-                        self.node_list.append(hostname)
-                    elif hostname in self.node_list:
-                        self.node_list.remove(hostname)    
+                        l.append(hostname)
+                    elif hostname in l:
+                        l.remove(hostname) 
         
-        return self.node_list
+        if is_node:
+            self.node_list = l
+        else:
+            self.executor_list = l
+        
+        return l
 
     def update_denylist(self, bad_list) -> list:
         for node in node_denylist:
@@ -99,6 +110,7 @@ class Resource_Controller():
         if root_cause == "resource_starvation":
             # now the bad_list is a dict containing starved resource types and peak values, but can also be empty
             if bad_list is not {}:
+                # this node_list is a subset of current executor's node list
                 node_list = self.get_satisfying_list(is_node=True, bad_dict=bad_list) 
                 executor_list = self.get_satisfying_list(is_node=False, bad_dict=bad_list) 
             return node_list, executor_list

@@ -135,6 +135,7 @@ class Resource_Analyzer():
             memory_info['RealMemory'] = int(real_memory_match.group(1))
         if alloc_memory_match:
             memory_info['AllocMem'] = int(alloc_memory_match.group(1))
+        self.logger.info(f"mem_info is {memory_info}")
         return memory_info
     
     
@@ -161,7 +162,7 @@ class Resource_Analyzer():
         last_executor_info = {}
         max_values = {}
         for message in consumer:
-            self.logger.info(f"msg: {message}")
+            # self.logger.info(f"msg: {message}")
             message_key = message.key.decode('utf-8')
             message_dict = json.loads(message.value.decode('utf-8'))
             
@@ -180,8 +181,9 @@ class Resource_Analyzer():
         
         self.logger.info(f"max_values: {max_values}")
         # Compare with overall value
-        mem_total = self.get_node_memory(self.hostname)['AllocMem']/1024
+        mem_total = self.get_node_memory(self.hostname)['RealMemory']/1024
         mem_used = int(max_values['psutil_process_memory_resident'])/(1024**3)
+        self.logger.info(f"mem_total = {mem_total}, mem_used = {mem_used}")
         if mem_used > mem_total*0.6: # TODO: make threshold configurable? other methods to determine out-of-mem?
             self.add2starved("MEMORY", mem_used)
 
