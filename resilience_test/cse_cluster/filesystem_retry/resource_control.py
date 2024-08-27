@@ -118,7 +118,10 @@ class Resource_Controller():
                 executor_list = self.get_satisfying_list(is_node=False, bad_dict=bad_list) 
             return node_list, executor_list
    
-        elif root_cause == "machine_shutdown":
-            # TODO: this can get a denylist, but how to get a full list?
-            l = self.update_denylist(bad_list)
+        # elif root_cause == "machine_shutdown":
+        #     # TODO: this can get a denylist, but how to get a full list?
+        #     l = self.update_denylist(bad_list)
+        #     return [], []
+        
+        else:
             return [], []

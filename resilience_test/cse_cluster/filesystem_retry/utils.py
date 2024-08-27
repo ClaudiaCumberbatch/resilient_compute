@@ -4,9 +4,12 @@ from kafka import TopicPartition
 import os
 import subprocess
 from typing import Tuple
+import time
 import sqlite3
 from pathlib import Path
 import pandas as pd
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
 from pandas import DataFrame
 
 from parsl.dataflow.taskrecord import TaskRecord
@@ -103,15 +106,19 @@ def ping_test(hostname: str) -> bool:
 
 def get_task_hostname(taskrecord: TaskRecord) -> str:
     """
-    Read try table, get hostname according to current task_id and try_id.
-    TODO: possibly be a list
+    Poll try table, get hostname according to current task_id and try_id.
+    Using polling because database updating needs time and the hostname could also be None due to the loss of worker.
     """
-    message_df = get_messages_from_db(
-        taskrecord=taskrecord,
-        query=f"SELECT hostname FROM try WHERE try_id IS {taskrecord['try_id']} AND task_id IS {taskrecord['id']} "
-    )
 
-    if len(message_df) > 0:
-        return message_df.iloc[0]['hostname']
-    else:
+    for _ in range(10):
+        message_df = get_messages_from_db(
+            taskrecord=taskrecord,
+            query=f"SELECT hostname FROM try WHERE try_id IS {taskrecord['try_id']} AND task_id IS {taskrecord['id']}"
+        )
+        if len(message_df) > 0 and message_df.iloc[0]['hostname'] is not None:
+            return message_df.iloc[0]['hostname']
+        else:
+            time.sleep(1)
+
         return None
+    

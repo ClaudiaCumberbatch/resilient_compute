@@ -47,7 +47,7 @@ class Resource_Analyzer():
             "UNKNOW"
         ] # TODO: 1. Make configurable; 2. Write to enum.
         self.bad_machine_list = [] # node
-        self.logger.info("resource analyzer initialized")
+        self.logger.info(f"resource analyzer initialized: {self}")
 
     def add2starved(self, type: str, peak_value: float) -> bool:
         """
@@ -65,11 +65,11 @@ class Resource_Analyzer():
         """
         "resource_starvation" or "machine_shutdown"
         """
-        # TODO: ping test needs hostname too!!!
-        if not ping_test(self.hostname):
-            self.root_cause = "machine_shutdown"
-        else:
-            self.root_cause = "resource_starvation"
+        
+        # if not ping_test(self.hostname):
+        #     self.root_cause = "machine_shutdown"
+        # else:
+        #     self.root_cause = "resource_starvation"
 
         # error_info = self.get_error_info()
         # if error_info:
@@ -79,6 +79,10 @@ class Resource_Analyzer():
         #         self.root_cause = "machine_shutdown"
         #     else:
         #         self.root_cause = "resource_starvation"
+        if not self.hostname:
+            self.root_cause = "machine_shutdown" # TODO
+        else:
+            self.root_cause = "resource_starvation"
         return self.root_cause
 
 
@@ -126,7 +130,7 @@ class Resource_Analyzer():
         last_executor_info = {}
         max_values = {}
         for message in msg_list:
-            self.logger.info(f"msg: {message}")
+            # self.logger.info(f"msg: {message}")
             
             # Keep the last one for walltime verification
             last_executor_info[message['hostname']] = message
@@ -186,9 +190,9 @@ class Resource_Analyzer():
             resource_dict = self.which_resources()
             self.logger.info(f"resource error: {resource_dict}")
             return root_cause, resource_dict
-        elif root_cause == "machine_shutdown": # TODO: deprecate this
-            machine_list = self.which_machines()
-            self.logger.info(f"machine error: {machine_list}")
-            return root_cause, machine_list
+        # elif root_cause == "machine_shutdown": # TODO: deprecate this
+        #     machine_list = self.which_machines()
+        #     self.logger.info(f"machine error: {machine_list}")
+        #     return root_cause, machine_list
         else:
-            return None
+            return "", []
