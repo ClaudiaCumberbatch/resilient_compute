@@ -1,6 +1,7 @@
 from diaspora_event_sdk import KafkaConsumer
 import json
 from kafka import TopicPartition
+from logging import Logger
 import os
 import subprocess
 from typing import Tuple
@@ -61,17 +62,21 @@ def get_messages_from_files(
     def path2obj(path):
         with open(path, "rb") as f:
             content = f.read() 
-            obj = deserialize(content)
-            return obj
+            try:
+                obj = deserialize(content)
+                return obj
+            except Exception as e:
+                return None
     
     def get_msgs(directory: str, topic, msg_list) -> list:
         for root, dirs, files in os.walk(directory):
             for file in files:
                 file_path = os.path.join(root, file)
                 path = os.path.abspath(file_path)
-                obj = path2obj(path)
-                if obj[0][0] == topic:
-                    msg_list.append(obj[0][1])
+                if os.path.exists(path):
+                    obj = path2obj(path)
+                    if obj and obj[0][0] == topic:
+                        msg_list.append(obj[0][1])
     
     root_dir = taskrecord['dfk'].run_dir
     monitor_fs_radio_dirs = find_monitor_fs_radio_dirs(root_dir)
@@ -80,6 +85,40 @@ def get_messages_from_files(
         get_msgs(dir, topic, msg_list)
     return msg_list
     
+
+def update_denylist(
+        taskrecord: TaskRecord,
+        logger: Logger
+    ):
+    """
+    Update denylist in DataFlowKernel according to try table in database,
+    then sort denylist according to success rate.
+    """
+    query = f"""
+    SELECT 
+        task_executor,
+        COUNT(CASE WHEN task_fail_history = '' THEN 1 END) * 1.0 / COUNT(*) AS success_rate
+    FROM 
+        try
+    WHERE 
+        task_try_time_returned IS NOT NULL
+    GROUP BY 
+        task_executor;
+    """
+    logger.info(f"current task id is {taskrecord['id']}, try_id is {taskrecord['try_id']}")
+    success_df = get_messages_from_db(
+        taskrecord=taskrecord,
+        query=query
+    )
+    logger.info(f"success_df is{success_df}")
+    denylist = taskrecord['dfk'].denylist
+    for index, row in success_df.iterrows():
+        denylist[row['task_executor']] = row['success_rate']
+    logger.info(f"denylist is {denylist}")
+    sorted_denylist = dict(sorted(denylist.items(), key=lambda item: item[1], reverse=True))
+    logger.info(f"sorted denylist is {sorted_denylist}")
+    taskrecord['dfk'].denylist = sorted_denylist
+
 
 def time_str_to_seconds(time_str) -> int:
     """

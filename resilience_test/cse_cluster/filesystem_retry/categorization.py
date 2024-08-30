@@ -186,6 +186,7 @@ class Resource_Analyzer():
 
     def get_rootcause_and_list(self) -> Tuple[str, list] | Tuple[str, dict]:
         root_cause = self.which_root_cause()
+        self.logger.info(f"task {self.taskrecord['id']} try_id {self.taskrecord['try_id']} root cause is {root_cause}")
         if root_cause == "resource_starvation":
             resource_dict = self.which_resources()
             self.logger.info(f"resource error: {resource_dict}")

@@ -66,15 +66,16 @@ def resilient_retry(e: Exception,
         return sys.maxsize
     else:
         resource_analyzer = Resource_Analyzer(taskrecord, logger)
+        # Update denylist. We do this after Resource_Analyzer initialization because it will wait for database update.
+        update_denylist(taskrecord, logger)
         root_cause, bad_list = resource_analyzer.get_rootcause_and_list()
-        if root_cause is "":
-            return sys.maxsize
-        
-        # Invoke Resource Control Module
-        resource_controler = Resource_Controller(taskrecord, logger)
-        node_list, executor_list = resource_controler.get_suggestions(root_cause, bad_list)
-        logger.info(f"node list: {node_list}")
-        logger.info(f"executor list: {executor_list}")
+        node_list, executor_list = [], []
+        if root_cause is "resource_starvation":
+            # Invoke Resource Control Module
+            resource_controler = Resource_Controller(taskrecord, logger)
+            node_list, executor_list = resource_controler.get_suggestions(root_cause, bad_list)
+            logger.info(f"node list: {node_list}")
+            logger.info(f"executor list: {executor_list}")
 
         # Invoke Retry Module
         retry_controller = Retry_Controller(taskrecord, logger)

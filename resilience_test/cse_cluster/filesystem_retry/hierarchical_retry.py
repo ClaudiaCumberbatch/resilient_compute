@@ -13,9 +13,11 @@ class Retry_Controller():
         self.logger.info("retry controller initialized")
 
     def update_taskrecord(self, node_list: list, executor_list: list) -> TaskRecord:
-        # TODO: how to suggest node to a task?
-        # 1. directly update the executor
-        # 2. put suggested node_list into taskrecord. what about resource specification?
+        """
+        Reschedule by modifying taskrecord.
+        1. For executor, update taskrecord['executor'].
+        2. For manager, update taskrecord['resource_specification'].
+        """
         if len(node_list) >= 1:
             self.logger.info(f"node list in retry controller is {node_list}")
             # find manager uid in node table in monitoring.db according to hostname
@@ -30,7 +32,10 @@ class Retry_Controller():
 
         if len(executor_list) >= 1:
             self.taskrecord['executor'] = executor_list[0] # we can do this because it's a pointer
-            self.logger.info(f"taskrecord has been updated to {self.taskrecord}")
+            self.logger.info(f"According to suggested executor_list, executor has been updated to {self.taskrecord['executor']}")
+        else:
+            self.taskrecord['executor'] = next(iter(self.taskrecord['dfk'].denylist))
+            self.logger.info(f"According to denylist, executor has been updated to {self.taskrecord['executor']}")
 
         return self.taskrecord
     
