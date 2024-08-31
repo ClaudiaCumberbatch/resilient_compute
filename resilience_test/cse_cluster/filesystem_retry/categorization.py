@@ -111,7 +111,7 @@ class Resource_Analyzer():
     def which_resources(self) -> dict:
         """
         Compare the already used value with the overall value of:
-        [] CPU, 
+        [x] CPU, 
         [] disk, 
         [x] memory, 
         [x] walltime, 
@@ -127,13 +127,19 @@ class Resource_Analyzer():
             )
 
         # Fetch current usage value of each type of resource
-        last_executor_info = {}
-        max_values = {}
+        last_executor_info = {} # for walltime
+        max_values = {} # for memory
+        cpu_intense_time_cnt = 0 # for CPU
         for message in msg_list:
             # self.logger.info(f"msg: {message}")
             
             # Keep the last one for walltime verification
             last_executor_info[message['hostname']] = message
+
+            # Calculate CPU intensive time duration
+            if message['hostname'] == self.hostname and float(message['cpu_percent']) > 80: # TODO: make configurable
+                cpu_intense_time_cnt += 1
+
             # Get the max value of each type
             for key, value in message.items():
                 if key not in max_values or value > max_values[key]:
@@ -142,11 +148,8 @@ class Resource_Analyzer():
         
         self.logger.info(f"max_values: {max_values}")
         # Compare with overall value
-        mem_total = self.get_node_memory(self.hostname)['RealMemory']/1024
-        mem_used = int(max_values['psutil_process_memory_resident'])/(1024**3)
-        self.logger.info(f"mem_total = {mem_total}, mem_used = {mem_used}")
-        if mem_used > mem_total*0.6: # TODO: make threshold configurable? other methods to determine out-of-mem?
-            self.add2starved("MEMORY", mem_used)
+        if float(max_values['memory_percent']) > 0.6: # TODO: make configurable
+            self.add2starved("MEMORY", max_values['memory_used'])
 
         current_provider = self.taskrecord['dfk'].executors[self.taskrecord['executor']].provider
         if isinstance(current_provider, SlurmProvider): # TODO: other providers
@@ -154,6 +157,10 @@ class Resource_Analyzer():
             walltime = time_str_to_seconds(current_provider.walltime)
             if run_time > walltime:
                 self.add2starved("WALLTIME", run_time)
+
+        self.logger.info(f"cpu_intense_time_cnt is {cpu_intense_time_cnt}")
+        if cpu_intense_time_cnt > 10:
+            self.add2starved("CPU", cpu_intense_time_cnt)
 
         return self.starved_type_dict
     

@@ -65,15 +65,10 @@ class Resource_Controller():
         # Choose the satisfying ones according to bad_list
         for hostname, msg_dict in last_info.items(): # here hostname is hostname or executor_label
             if "MEMORY" in bad_dict.keys():
-                mem_used = int(msg_dict['psutil_process_memory_resident'])/(1024**3)
-                mem_total = mem_used/msg_dict['psutil_process_memory_percent']*100
-                self.logger.info(f"mem_rest is {mem_total - mem_used}, mem requires is {bad_dict['MEMORY']}")
-                if mem_total - mem_used > bad_dict["MEMORY"]: # the rest mem is enough
+                if int(msg_dict['memory_free'])/(1024**3) > bad_dict["MEMORY"]: # the rest mem is enough
                     l.append(hostname)
-                    self.logger.info(f"is_node is {is_node}, add {hostname}")
                 elif hostname in l:
                     l.remove(hostname)
-                    self.logger.info(f"is_node is {is_node}, remove {hostname}")
             if "WALLTIME" in bad_dict.keys():
                 current_provider = self.taskrecord['dfk'].executors[self.taskrecord['executor']].provider
                 if isinstance(current_provider, SlurmProvider): # TODO: other providers
@@ -84,12 +79,18 @@ class Resource_Controller():
                         l.append(hostname)
                     elif hostname in l:
                         l.remove(hostname) 
+            if "CPU" in bad_dict.keys():
+                if int(msg_dict['cpu_percent']) < 50:
+                    l.append(hostname)
+                else:
+                    l.remove(hostname)
         
         if is_node:
             self.node_list = l
         else:
             self.executor_list = l
         
+        self.logger.info(f"is_node is {is_node}, list is {l}")
         return l
 
     def update_denylist(self, bad_list) -> list:
