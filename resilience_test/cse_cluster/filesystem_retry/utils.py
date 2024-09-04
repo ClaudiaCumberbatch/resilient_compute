@@ -91,9 +91,11 @@ def update_denylist(
         logger: Logger
     ):
     """
-    Update denylist in DataFlowKernel according to try table in database,
-    then sort denylist according to success rate.
+    Update executor denylist in DataFlowKernel and manager denylist in executor
+    according to try table in database,
+    then sort them according to the calculated success rate.
     """
+    # 1. executor denylist in DataFlowKernel
     query = f"""
     SELECT 
         task_executor,
@@ -110,14 +112,38 @@ def update_denylist(
         taskrecord=taskrecord,
         query=query
     )
-    logger.info(f"success_df is{success_df}")
     denylist = taskrecord['dfk'].denylist
     for index, row in success_df.iterrows():
         denylist[row['task_executor']] = row['success_rate']
-    logger.info(f"denylist is {denylist}")
     sorted_denylist = dict(sorted(denylist.items(), key=lambda item: item[1], reverse=True))
-    logger.info(f"sorted denylist is {sorted_denylist}")
     taskrecord['dfk'].denylist = sorted_denylist
+    logger.info(f"executor denylist updated to {sorted_denylist}")
+
+    # 2. manager denylist in each executor
+    for executor_label in taskrecord['dfk'].executors.keys():
+        if executor_label == '_parsl_internal': 
+            continue
+        
+        query = f"""
+        SELECT 
+            hostname,
+            COUNT(CASE WHEN task_fail_history = '' THEN 1 END) * 1.0 / COUNT(*) AS success_rate
+        FROM 
+            try
+        WHERE 
+            task_executor IS '{executor_label}' AND task_try_time_returned IS NOT NULL
+        GROUP BY 
+            hostname
+        ORDER BY
+            success_rate DESC;
+        """
+        success_df = get_messages_from_db(
+            taskrecord=taskrecord,
+            query=query
+        )
+        data_dict = success_df.set_index('hostname')['success_rate'].to_dict()
+        taskrecord['dfk'].executors[executor_label].denylist = data_dict
+        logger.info(f"executor {executor_label} denylist updated to {data_dict}")
 
 
 def time_str_to_seconds(time_str) -> int:
