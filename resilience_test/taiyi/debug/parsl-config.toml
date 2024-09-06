@@ -1,0 +1,36 @@
+[app]
+name = "failures"
+base = "cholesky"
+failure_rate = 1
+failure_type = "memory"
+
+[app.config]
+matrix_size = 100
+block_size = 50
+
+[engine.executor]
+name = "parsl-htex"
+retries = 3
+
+[engine.executor.htex]
+max_workers = 4
+radio_mode = "filesystem"
+
+[engine.executor.htex.provider]
+kind = "LSFProvider"
+init_blocks = 1
+max_blocks = 1
+min_blocks = 1
+nodes_per_block = 1
+queue = "debug"
+scheduler_options = ""
+walltime = "00:30:00"
+
+
+
+
+[engine.executor.monitoring]
+hub_address = "localhost"
+logging_endpoint = 'sqlite:///parsl-runinfo/monitoring.db'
+resource_monitoring_interval = 1
+hub_port = 55055
