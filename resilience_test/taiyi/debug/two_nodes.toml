@@ -1,45 +1,30 @@
 [app]
 name = "failures"
-base = "cholesky"
+base = "mapreduce"
 failure_rate = 0
-failure_type = "worker-killed"
+failure_type = "memory"
 
 [app.config]
-matrix_size = 100
-block_size = 50
+data_dir = '/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/data/maildir'
+map_tasks = 16
+
 
 [engine.executor]
 name = "parsl-htex"
 retries = 3
 
-[engine.executor.htex.exe1]
-label = "exe1"
+[engine.executor.htex]
 max_workers = 4
 radio_mode = "filesystem"
 
-[engine.executor.htex.exe1.provider]
+[engine.executor.htex.provider]
 kind = "LSFProvider"
 init_blocks = 1
 max_blocks = 1
 min_blocks = 1
 nodes_per_block = 1
 queue = "debug"
-walltime = "00:30:00"
-
-
-
-[engine.executor.htex.exe2]
-label = "exe2"
-max_workers = 4
-radio_mode = "filesystem"
-
-[engine.executor.htex.exe2.provider]
-kind = "LSFProvider"
-init_blocks = 1
-max_blocks = 1
-min_blocks = 1
-nodes_per_block = 1
-queue = "debug"
+scheduler_options = ""
 walltime = "00:30:00"
 
 

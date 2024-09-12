@@ -1,0 +1,41 @@
+[app]
+name = "failures"
+base = "fedlearn"
+failure_rate = 0.3
+failure_type = "zero-division"
+
+[app.config]
+dataset = "mnist"
+data_dir = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/data/fedlearn"
+rounds = 1
+participation = 0.5
+
+[engine.executor]
+name = "parsl-htex"
+retries = 3
+
+[engine.executor.htex]
+max_workers = 40
+radio_mode = "filesystem"
+
+
+[engine.executor.htex.provider]
+kind = "LSFProvider"
+queue = "debug"
+scheduler_options = ""
+walltime = "00:30:00"
+init_blocks = 1
+max_blocks = 1
+min_blocks = 1
+worker_init = "export OMP_NUM_THREADS=1; export OPENBLAS_NUM_THREADS=1"
+
+request_by_nodes = 0
+cores_per_block = 80
+cores_per_node = 40
+
+
+[engine.executor.monitoring]
+hub_address = "localhost"
+logging_endpoint = 'sqlite:///parsl-runinfo/monitoring.db'
+resource_monitoring_interval = 1
+hub_port = 55055

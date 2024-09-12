@@ -1,0 +1,33 @@
+[app]
+name = "failures"
+base = "montage"
+failure_rate = 0
+failure_type = "zero-division"
+
+[app.config]
+img_folder = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/data/Kimages"
+
+[engine.executor]
+name = "parsl-htex"
+retries = 3
+
+[engine.executor.htex]
+max_workers = 4
+radio_mode = "filesystem"
+
+[engine.executor.htex.provider]
+kind = "LSFProvider"
+init_blocks = 1
+max_blocks = 1
+min_blocks = 1
+nodes_per_block = 2
+queue = "debug"
+scheduler_options = ""
+walltime = "00:30:00"
+
+
+[engine.executor.monitoring]
+hub_address = "localhost"
+logging_endpoint = 'sqlite:///parsl-runinfo/monitoring.db'
+resource_monitoring_interval = 1
+hub_port = 55055

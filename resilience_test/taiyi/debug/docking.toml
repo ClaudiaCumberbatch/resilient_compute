@@ -1,0 +1,35 @@
+[app]
+name = "failures"
+base = "docking"
+failure_rate = 0
+failure_type = "import"
+
+[app.config]
+smi_file_name_ligand = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/data/docking/dataset_orz_original_1k.csv"
+receptor = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/data/docking/1iep_receptor.pdbqt"
+tcl_path = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/data/docking/set_element.tcl"
+
+[engine.executor]
+name = "parsl-htex"
+retries = 3
+
+[engine.executor.htex]
+max_workers = 32
+radio_mode = "filesystem"
+
+[engine.executor.htex.provider]
+kind = "LSFProvider"
+init_blocks = 1
+max_blocks = 1
+min_blocks = 1
+nodes_per_block = 2
+queue = "debug"
+scheduler_options = ""
+walltime = "00:30:00"
+
+
+[engine.executor.monitoring]
+hub_address = "localhost"
+logging_endpoint = 'sqlite:///parsl-runinfo/monitoring.db'
+resource_monitoring_interval = 1
+hub_port = 55055
