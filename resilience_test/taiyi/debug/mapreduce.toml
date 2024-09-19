@@ -6,16 +6,16 @@ failure_type = "worker-killed"
 
 [app.config]
 data_dir = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/tmp/generated-files"
-map_tasks = 4
+map_tasks = 100
 generate = "True"
-generated_files = 4
+generated_files = 100
 
 [engine.executor]
 name = "parsl-htex"
 retries = 3
 
 [engine.executor.htex]
-max_workers = 40
+max_workers = 80
 radio_mode = "filesystem"
 
 [engine.executor.htex.provider]

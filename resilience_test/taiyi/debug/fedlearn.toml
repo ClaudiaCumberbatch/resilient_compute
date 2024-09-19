@@ -15,9 +15,8 @@ name = "parsl-htex"
 retries = 3
 
 [engine.executor.htex]
-max_workers = 40
+max_workers = 80
 radio_mode = "filesystem"
-
 
 [engine.executor.htex.provider]
 kind = "LSFProvider"
