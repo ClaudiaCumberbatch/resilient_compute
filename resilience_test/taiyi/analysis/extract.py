@@ -22,6 +22,15 @@ def get_one_record(directory: str) -> dict:
     db_path = find_path(directory, target='monitoring.db')
     config_path = find_path(directory, target='config.toml')
     record = {}
+    record['run_id'] = ''
+    record['run_dir'] = None
+    record['workflow'] = None
+    record['failure_type'] = None
+    record['failure_rate_set'] = None
+    record['makespan'] = None
+    record['workflow_finish'] = None
+    record['average_task_time'] = None
+    record['task_success_rate'] = None
 
     if db_path:
         get_info_from_db(db_path, record)
@@ -157,12 +166,15 @@ def insert_or_append_data(db_path: str, data: list):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     conn.set_trace_callback(print)
+
+    # Filter out records without run_id
+    filtered_data = [entry for entry in data if entry.get('run_id')]
     
     try:
         cursor.executemany('''
             INSERT OR IGNORE INTO workflow (run_id, run_dir, workflow, failure_type, failure_rate_set, makespan, workflow_finish, average_task_time, task_success_rate)
             VALUES (:run_id, :run_dir, :workflow, :failure_type, :failure_rate_set, :makespan, :workflow_finish, :average_task_time, :task_success_rate)
-        ''', data)
+        ''', filtered_data)
         conn.commit()
     except sqlite3.Error as e:
         print(e)

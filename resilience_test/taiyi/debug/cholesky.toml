@@ -2,7 +2,7 @@
 name = "failures"
 base = "cholesky"
 failure_rate = 0.3
-failure_type = "dependency"
+failure_type = "failure"
 
 [app.config]
 matrix_size = 10000

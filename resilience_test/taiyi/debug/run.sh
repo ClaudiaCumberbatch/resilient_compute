@@ -2,7 +2,8 @@
 
 # python -m taps.run --config two_executors.toml
 
-python -m taps.run --config montage.toml
+rm -rf /work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/tmp/generated-files
+python -m taps.run --config mapreduce.toml
 
 # python -m taps.run --app fedlearn \
 #     --app.dataset mnist --app.data-dir data/fedlearn \

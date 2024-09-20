@@ -2,7 +2,7 @@
 name = "failures"
 base = "mapreduce"
 failure_rate = 0.3
-failure_type = "worker-killed"
+failure_type = "import"
 
 [app.config]
 data_dir = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/tmp/generated-files"

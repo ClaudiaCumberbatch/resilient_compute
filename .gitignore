@@ -10,3 +10,4 @@ without/
 *log
 resilience_test/expanse/workflow/terminal.log
 data/
+tmp/
