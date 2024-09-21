@@ -67,6 +67,9 @@ def get_info_from_db(db_path: str, record: dict):
         # run_id, run_dir, and makespan
         cursor.execute("SELECT run_id, rundir, (julianday(time_completed) - julianday(time_began))* 86400 AS makespan FROM workflow")
         rows = cursor.fetchall()
+        if not rows:
+            return
+
         record['run_id'] = rows[0][0]
         record['run_dir'] = rows[0][1]
         record['makespan'] = rows[0][2]

@@ -2,7 +2,7 @@
 name = "failures"
 base = "moldesign"
 failure_rate = 0.3
-failure_type = "zero-division"
+failure_type = "worker-killed"
 
 [app.config]
 dataset = '/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/data/moldesign/QM9-search.tsv'
@@ -15,14 +15,15 @@ name = "parsl-htex"
 retries = 3
 
 [engine.executor.htex]
-max_workers = 80
+max_workers = 40
 radio_mode = "filesystem"
 
 [engine.executor.htex.provider]
 kind = "LSFProvider"
 queue = "debug"
 scheduler_options = ""
-walltime = "00:30:00"
+walltime = "00:20:00"
+bsub_redirection = 1
 init_blocks = 1
 max_blocks = 1
 min_blocks = 1
@@ -31,6 +32,10 @@ worker_init = "export OMP_NUM_THREADS=1; export OPENBLAS_NUM_THREADS=1"
 request_by_nodes = 0
 cores_per_block = 80
 cores_per_node = 40
+
+[engine.executor.htex.provider.launcher]
+kind = "MpiRunLauncher"
+overrides="-ppn 1 -host $(cat $(echo $LSB_DJOB_HOSTFILE) | sort -n | uniq | head -n 2 | paste -d, -s)"
 
 
 [engine.executor.monitoring]

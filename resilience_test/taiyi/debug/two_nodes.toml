@@ -25,7 +25,7 @@ min_blocks = 1
 nodes_per_block = 1
 queue = "debug"
 scheduler_options = ""
-walltime = "00:30:00"
+walltime = "00:20:00"
 
 
 

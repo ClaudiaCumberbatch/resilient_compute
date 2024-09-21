@@ -33,10 +33,29 @@ for base in "${BASES[@]}"; do
     echo "Start time: $(date), Configuration: base = $base, TOML_FILE = $TOML_FILE, failure_type = $failure_type"
 
     # kill jobs that execute over 1 min
-    bjobs -noheader -o "id run_time" | awk '$2 ~ /([0-9]+)M/ && $1 > 1 { system("bkill " $1) }'
+    bjobs -noheader -o "id run_time" | sed 's/ second(s)//' | awk '$2 > 1 { system("bkill " $1) }'
+
+    # check port
+    if lsof -i :$PORT > /dev/null; then
+      echo "Port $PORT is still in use, attempting to release it."
+
+      PID=$(lsof -t -i :$PORT)
+      if [ -n "$PID" ]; then
+        echo "Killing process $PID that is using port $PORT."
+        kill -9 $PID
+      fi
+
+      if lsof -i :$PORT > /dev/null; then
+        echo "Failed to release port $PORT."
+      else
+        echo "Port $PORT has been successfully released."
+      fi
+    else
+      echo "Port $PORT has been successfully released."
+    fi
 
     # run python
-    LOG_FILE="taps_run_$base.log"
+    LOG_FILE="$base.log"
     if [ "$base" == "docking" ]; then
       stdbuf -oL python3 -m taps.run --config "$TOML_FILE" > "$LOG_FILE" 2>&1 &
     else
@@ -59,24 +78,6 @@ for base in "${BASES[@]}"; do
         echo "$(date): No output for 5 minutes. Terminating the process."
         kill -9 $TAP_PID
 
-        # check port
-        if lsof -i :$PORT > /dev/null; then
-          echo "Port $PORT is still in use, attempting to release it."
-
-          PID=$(lsof -t -i :$PORT)
-          if [ -n "$PID" ]; then
-            echo "Killing process $PID that is using port $PORT."
-            kill -9 $PID
-          fi
-
-          if lsof -i :$PORT > /dev/null; then
-            echo "Failed to release port $PORT."
-          else
-            echo "Port $PORT has been successfully released."
-          fi
-        else
-          echo "Port $PORT has been successfully released."
-        fi
         break
       fi
 
