@@ -20,7 +20,7 @@ def get_one_record(directory: str) -> dict:
     """
 
     db_path = find_path(directory, target='monitoring.db')
-    config_path = find_path(directory, target='config.toml')
+    log_path = find_path(directory, target='log.txt')
     record = {}
     record['run_id'] = ''
     record['run_dir'] = None
@@ -37,10 +37,10 @@ def get_one_record(directory: str) -> dict:
     else:
         print("No monitoring.db file found in the directory.")
     
-    if config_path:
-        read_config(config_path, record)
+    if log_path:
+        read_log(log_path, record)
     else:
-        print("No config.toml file found in the directory.")
+        print("No log.txt file found in the directory.")
     return record
 
 
@@ -124,6 +124,7 @@ def get_info_from_db(db_path: str, record: dict):
 
 def read_config(config_file, record):
     """
+    !!! Deprecated because Config with retry_handler does not support writing to config.toml!!!
     Extract workflow, failure_type, failure_rate_set from config.toml file.
     Directly modify record.
     Return nothing.
@@ -137,6 +138,24 @@ def read_config(config_file, record):
     record['workflow'] = workflow
     record['failure_type'] = failure_type
     record['failure_rate_set'] = failure_rate_set
+
+
+def read_log(log_file, record):
+    """
+    Extract workflow_finish from log file.
+    Directly modify record.
+    Return nothing.
+    """
+    with open(log_file, 'r') as f:
+        lines = f.readlines()
+        for line in lines:
+            if 'base' in line:
+                record['workflow'] = line.split(': ')[1].strip().strip("'")
+            elif 'failure_rate' in line:
+                record['failure_rate_set'] = float(line.split(': ')[1].strip())
+            elif 'failure_type' in line:
+                record['failure_type'] = line.split(': ')[1].strip().strip("'")
+                return
     
 
 def create_database_and_table_if_not_exists(db_path: str):
