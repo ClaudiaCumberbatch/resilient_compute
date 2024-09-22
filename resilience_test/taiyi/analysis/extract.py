@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import toml
 
@@ -31,6 +32,9 @@ def get_one_record(directory: str) -> dict:
     record['workflow_finish'] = None
     record['average_task_time'] = None
     record['task_success_rate'] = None
+    record['resilience'] = None
+    record['executor_cnt'] = 0
+    record['node_cnt'] = 0
 
     if db_path:
         get_info_from_db(db_path, record)
@@ -145,32 +149,23 @@ def get_info_from_db(db_path: str, record: dict):
     finally:
         cursor.close()
         conn.close()
-    
-
-def read_config(config_file, record):
-    """
-    !!! Deprecated because Config with retry_handler does not support writing to config.toml!!!
-    Extract workflow, failure_type, failure_rate_set from config.toml file.
-    Directly modify record.
-    Return nothing.
-    """
-    config = toml.load(config_file)
-    
-    workflow = config.get('app', {}).get('base')
-    failure_type = config.get('app', {}).get('failure_type')
-    failure_rate_set = config.get('app', {}).get('failure_rate')
-
-    record['workflow'] = workflow
-    record['failure_type'] = failure_type
-    record['failure_rate_set'] = failure_rate_set
 
 
 def read_log(log_file, record):
     """
-    Extract workflow_finish from log file.
+    Extract workflow, failure_type, failure_rate_set, resilience, executor_cnt, node_cnt from log file.
     Directly modify record.
     Return nothing.
     """
+
+    # executor_cnt
+    executor_pattern = r'\n\s+\w+:\s*\n\s+address:'  # Matches lines expected for executors.
+    with open(log_file, 'r') as file:
+        log_data = file.read()  # Read the entire content of the log file.
+    matches = re.findall(executor_pattern, log_data)
+    record['executor_cnt'] = len(matches)
+
+    # workflow, failure_type, failure_rate_set, resilience, node_cnt
     with open(log_file, 'r') as f:
         lines = f.readlines()
         for line in lines:
@@ -180,6 +175,20 @@ def read_log(log_file, record):
                 record['failure_rate_set'] = float(line.split(': ')[1].strip())
             elif 'failure_type' in line:
                 record['failure_type'] = line.split(': ')[1].strip().strip("'")
+            elif 'retry_handler' in line:
+                if 'resilient_retry' in line:
+                    record['resilience'] = True
+                else:
+                    record['resilience'] = False
+            elif 'nodes_per_block' in line:
+                """
+                The number of nodes in total is a bit hard to determine.
+                Here we use a simple way, i.e. assume the number of blocks per executor = 1
+                then add up the number of nodes in each executor.
+                """
+                record['node_cnt'] = record['node_cnt'] + int(line.split('=')[1].strip().rstrip(','))
+            elif '(parsl.dataflow.dflow) > Parsl version:' in line:
+                # indicates the end of config and the beginning of workflow
                 return
     
 
@@ -195,6 +204,9 @@ def create_database_and_table_if_not_exists(db_path: str):
                 workflow TEXT,
                 failure_type TEXT,
                 failure_rate_set REAL,
+                resilience BOOLEAN,
+                executor_cnt INTEGER,
+                node_cnt INTEGER,
                 makespan REAL,
                 workflow_finish BOOLEAN,
                 average_task_time REAL,
@@ -219,8 +231,8 @@ def insert_or_append_data(db_path: str, data: list):
     
     try:
         cursor.executemany('''
-            INSERT OR IGNORE INTO workflow (run_id, run_dir, workflow, failure_type, failure_rate_set, makespan, workflow_finish, average_task_time, task_success_rate)
-            VALUES (:run_id, :run_dir, :workflow, :failure_type, :failure_rate_set, :makespan, :workflow_finish, :average_task_time, :task_success_rate)
+            INSERT OR IGNORE INTO workflow (run_id, run_dir, workflow, failure_type, failure_rate_set, resilience, executor_cnt, node_cnt, makespan, workflow_finish, average_task_time, task_success_rate)
+            VALUES (:run_id, :run_dir, :workflow, :failure_type, :failure_rate_set, :resilience, :executor_cnt, :node_cnt, :makespan, :workflow_finish, :average_task_time, :task_success_rate)
         ''', filtered_data)
         conn.commit()
     except sqlite3.Error as e:
