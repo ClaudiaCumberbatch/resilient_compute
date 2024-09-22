@@ -57,6 +57,8 @@ def find_path(directory: str, target: str) -> str:
 def get_info_from_db(db_path: str, record: dict):
     """
     Extract run_id, run_dir, makespan, workflow_finish, average_task_time, and task_success_rate from database.
+    makespan indicates whether the workflow finished by itself,
+    while workflow_finish indicates whether the workflow finished successfully.
     Directly modify record.
     Return nothing.
     """
@@ -65,6 +67,11 @@ def get_info_from_db(db_path: str, record: dict):
     
     try:
         # run_id, run_dir, and makespan
+        """
+        If a workflow finishes by itself, there will be a makespan. 
+        Otherwise, it is killed by main.sh based due to time limit.
+        This is actually useful for debugging.
+        """
         cursor.execute("SELECT run_id, rundir, (julianday(time_completed) - julianday(time_began))* 86400 AS makespan FROM workflow")
         rows = cursor.fetchall()
         if not rows:
@@ -84,7 +91,20 @@ def get_info_from_db(db_path: str, record: dict):
         if len(rows) == 0:
             record['workflow_finish'] = False
         else:
-            record['workflow_finish'] = True
+            """
+            To make sure the workflow finishes successfully,
+            the number of tasks_completed_count should be equal to the number of tasks in task table.
+            """
+            cursor.execute('''
+                SELECT COUNT(*) AS task_count
+                FROM task
+            ''')
+            task_count = cursor.fetchone()[0]
+            
+            if rows[0][-1] == task_count:
+                record['workflow_finish'] = True
+            else:
+                record['workflow_finish'] = False
 
         # average task time
         cursor.execute('''
@@ -95,11 +115,16 @@ def get_info_from_db(db_path: str, record: dict):
         record['average_task_time'] = rows[0][0]
 
         # success rate
+        """
+        A successful try should have task_try_time_returned not null and task_fail_history null.
+        """
         cursor.execute('''
-            SELECT COUNT(DISTINCT task_id) AS unique_task_count
+            SELECT COUNT(*) AS success_count
             FROM try
+            WHERE task_try_time_returned IS NOT NULL
+                AND task_fail_history IS ''
         ''')
-        unique_task_count = cursor.fetchone()[0]
+        success_task_count = cursor.fetchone()[0]
 
         cursor.execute('''
             SELECT COUNT(*) AS total_record_count
@@ -108,7 +133,7 @@ def get_info_from_db(db_path: str, record: dict):
         total_record_count = cursor.fetchone()[0]
 
         if total_record_count > 0:
-            task_success_rate = unique_task_count / total_record_count
+            task_success_rate = success_task_count / total_record_count
         else:
             task_success_rate = 0
 
