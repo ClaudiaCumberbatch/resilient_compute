@@ -1,6 +1,6 @@
-from diaspora_event_sdk import KafkaConsumer
+# from diaspora_event_sdk import KafkaConsumer
 import json
-from kafka import TopicPartition
+# from kafka import TopicPartition
 from logging import Logger
 import os
 import subprocess

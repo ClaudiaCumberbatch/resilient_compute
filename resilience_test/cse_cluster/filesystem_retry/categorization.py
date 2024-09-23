@@ -145,6 +145,9 @@ class Resource_Analyzer():
                 if key not in max_values or value > max_values[key]:
                     max_values[key] = value
 
+        if len(max_values) == 0:
+            self.logger.info("No NODE_INFO found yet.")
+            return []
         
         self.logger.info(f"max_values: {max_values}")
         # Compare with overall value
