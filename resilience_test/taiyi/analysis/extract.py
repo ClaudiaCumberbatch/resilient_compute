@@ -32,6 +32,7 @@ def get_one_record(directory: str) -> dict:
     record['workflow_finish'] = None
     record['average_task_time'] = None
     record['task_success_rate'] = None
+    record['retry_success_rate'] = None
     record['resilience'] = None
     record['executor_cnt'] = 0
     record['node_cnt'] = 0
@@ -60,7 +61,7 @@ def find_path(directory: str, target: str) -> str:
 
 def get_info_from_db(db_path: str, record: dict):
     """
-    Extract run_id, run_dir, makespan, workflow_finish, average_task_time, and task_success_rate from database.
+    Extract run_id, run_dir, makespan, workflow_finish, average_task_time, task_success_rate, and retry_success_rate from database.
     makespan indicates whether the workflow finished by itself,
     while workflow_finish indicates whether the workflow finished successfully.
     Directly modify record.
@@ -118,7 +119,7 @@ def get_info_from_db(db_path: str, record: dict):
         rows = cursor.fetchall()
         record['average_task_time'] = rows[0][0]
 
-        # success rate
+        # task success rate
         """
         A successful try should have task_try_time_returned not null and task_fail_history null.
         """
@@ -142,6 +143,28 @@ def get_info_from_db(db_path: str, record: dict):
             task_success_rate = 0
 
         record['task_success_rate'] = task_success_rate
+
+        # retry_success_rate
+        cursor.execute('''
+            SELECT COUNT(*) AS success_retry
+            FROM try
+            WHERE task_try_time_returned IS NOT NULL
+                AND task_fail_history IS ''
+                AND try_id != 0
+        ''')
+        success_retry_count = cursor.fetchone()[0]
+        cursor.execute('''
+            SELECT COUNT(*) AS total_retry
+            FROM try
+            WHERE try_id != 0
+        ''')
+        total_retry_count = cursor.fetchone()[0]
+        if total_retry_count > 0:
+            retry_success_rate = success_retry_count / total_retry_count
+        else:
+            retry_success_rate = 0
+
+        record['retry_success_rate'] = retry_success_rate
 
         
     except sqlite3.Error as e:
@@ -210,7 +233,8 @@ def create_database_and_table_if_not_exists(db_path: str):
                 makespan REAL,
                 workflow_finish BOOLEAN,
                 average_task_time REAL,
-                task_success_rate REAL
+                task_success_rate REAL,
+                retry_success_rate REAL
             )
         ''')
         conn.commit()
@@ -231,8 +255,34 @@ def insert_or_append_data(db_path: str, data: list):
     
     try:
         cursor.executemany('''
-            INSERT OR IGNORE INTO workflow (run_id, run_dir, workflow, failure_type, failure_rate_set, resilience, executor_cnt, node_cnt, makespan, workflow_finish, average_task_time, task_success_rate)
-            VALUES (:run_id, :run_dir, :workflow, :failure_type, :failure_rate_set, :resilience, :executor_cnt, :node_cnt, :makespan, :workflow_finish, :average_task_time, :task_success_rate)
+            INSERT OR IGNORE INTO workflow (
+                           run_id, 
+                           run_dir, 
+                           workflow, 
+                           failure_type, 
+                           failure_rate_set, 
+                           resilience, 
+                           executor_cnt, 
+                           node_cnt, 
+                           makespan, 
+                           workflow_finish, 
+                           average_task_time, 
+                           task_success_rate, 
+                           retry_success_rate)
+            VALUES (
+                           :run_id, 
+                           :run_dir, 
+                           :workflow, 
+                           :failure_type, 
+                           :failure_rate_set, 
+                           :resilience, 
+                           :executor_cnt, 
+                           :node_cnt, 
+                           :makespan, 
+                           :workflow_finish, 
+                           :average_task_time, 
+                           :task_success_rate, 
+                           :retry_success_rate)
         ''', filtered_data)
         conn.commit()
     except sqlite3.Error as e:
