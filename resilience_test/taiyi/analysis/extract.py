@@ -2,6 +2,8 @@ import os
 import re
 import sqlite3
 import toml
+from datetime import datetime, timedelta
+
 
 def get_all_directories(directory: str) -> list:
     """
@@ -34,6 +36,7 @@ def get_one_record(directory: str) -> dict:
     record['task_success_rate'] = None
     record['retry_success_rate'] = None
     record['resilience'] = None
+    record['overhead'] = 0
     record['executor_cnt'] = 0
     record['node_cnt'] = 0
 
@@ -174,9 +177,49 @@ def get_info_from_db(db_path: str, record: dict):
         conn.close()
 
 
+def get_overhead(log_file) -> float:
+    """
+    Calculate the overhead of retry_handler.
+    Takes 30s to run.
+    """
+    def extract_timestamp(line: str):
+        retry_config_pattern = re.compile(r'\[(.*?)\] INFO  \(retry_config\)')
+        time_format = '%Y-%m-%d %H:%M:%S.%f'
+        match = retry_config_pattern.search(line)
+        if match:
+            timestamp_str = match.group(1)
+            return datetime.strptime(timestamp_str, time_format)
+        return None
+    
+    with open(log_file, 'r') as file:
+        lines = file.readlines()
+
+    time_deltas = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if 'retry_config' in line:
+            # start to look for the last consecutive retry_config
+            j = i + 1
+            while j < len(lines) and 'retry_config' in lines[j]:
+                j += 1
+
+            start_time = extract_timestamp(lines[i])
+            end_time = extract_timestamp(lines[j - 1])
+            if start_time is not None and end_time is not None:
+                time_deltas.append(end_time - start_time)
+                # print(f'retry_config 调用时间: {start_time} - {end_time}')
+            i = j
+        else:
+            i += 1
+
+    total_time = sum(time_deltas, timedelta())
+    return total_time.total_seconds()
+
+
 def read_log(log_file, record):
     """
-    Extract workflow, failure_type, failure_rate_set, resilience, executor_cnt, node_cnt from log file.
+    Extract workflow, failure_type, failure_rate_set, resilience, overhead, executor_cnt, node_cnt from log file.
     Directly modify record.
     Return nothing.
     """
@@ -201,6 +244,7 @@ def read_log(log_file, record):
             elif 'retry_handler' in line:
                 if 'resilient_retry' in line:
                     record['resilience'] = True
+                    record['overhead'] = get_overhead(log_file)
                 else:
                     record['resilience'] = False
             elif 'nodes_per_block' in line:
@@ -213,7 +257,7 @@ def read_log(log_file, record):
             elif '(parsl.dataflow.dflow) > Parsl version:' in line:
                 # indicates the end of config and the beginning of workflow
                 return
-    
+
 
 def create_database_and_table_if_not_exists(db_path: str):
     conn = sqlite3.connect(db_path)
@@ -228,6 +272,7 @@ def create_database_and_table_if_not_exists(db_path: str):
                 failure_type TEXT,
                 failure_rate_set REAL,
                 resilience BOOLEAN,
+                overhead REAL,
                 executor_cnt INTEGER,
                 node_cnt INTEGER,
                 makespan REAL,
@@ -262,6 +307,7 @@ def insert_or_append_data(db_path: str, data: list):
                            failure_type, 
                            failure_rate_set, 
                            resilience, 
+                           overhead,
                            executor_cnt, 
                            node_cnt, 
                            makespan, 
@@ -276,6 +322,7 @@ def insert_or_append_data(db_path: str, data: list):
                            :failure_type, 
                            :failure_rate_set, 
                            :resilience, 
+                           :overhead,
                            :executor_cnt, 
                            :node_cnt, 
                            :makespan, 
