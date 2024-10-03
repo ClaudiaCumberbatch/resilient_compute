@@ -33,6 +33,7 @@ def get_one_record(directory: str) -> dict:
     record['makespan'] = None
     record['workflow_finish'] = None
     record['average_task_time'] = None
+    record['task_count'] = 0
     record['task_success_rate'] = None
     record['retry_success_rate'] = None
     record['resilience'] = None
@@ -64,7 +65,7 @@ def find_path(directory: str, target: str) -> str:
 
 def get_info_from_db(db_path: str, record: dict):
     """
-    Extract run_id, run_dir, makespan, workflow_finish, average_task_time, task_success_rate, and retry_success_rate from database.
+    Extract run_id, run_dir, makespan, workflow_finish, average_task_time, task_count, task_success_rate, and retry_success_rate from database.
     makespan indicates whether the workflow finished by itself,
     while workflow_finish indicates whether the workflow finished successfully.
     Directly modify record.
@@ -114,13 +115,14 @@ def get_info_from_db(db_path: str, record: dict):
             else:
                 record['workflow_finish'] = False
 
-        # average task time
+        # average task time, task count
         cursor.execute('''
-            SELECT AVG((julianday(task_time_returned) - julianday(task_time_invoked)) * 86400) AS average_time_in_seconds
+            SELECT COUNT(*) AS task_count, AVG((julianday(task_time_returned) - julianday(task_time_invoked)) * 86400) AS average_time_in_seconds
             FROM task
         ''')
         rows = cursor.fetchall()
-        record['average_task_time'] = rows[0][0]
+        record['task_count'] = rows[0][0]
+        record['average_task_time'] = rows[0][1]
 
         # task success rate
         """
@@ -236,6 +238,8 @@ def read_log(log_file, record):
         lines = f.readlines()
         for line in lines:
             if 'base' in line:
+                if len(line.split(': ')) < 2:
+                    return
                 record['workflow'] = line.split(': ')[1].strip().strip("'")
             elif 'failure_rate' in line:
                 record['failure_rate_set'] = float(line.split(': ')[1].strip())
@@ -278,6 +282,7 @@ def create_database_and_table_if_not_exists(db_path: str):
                 makespan REAL,
                 workflow_finish BOOLEAN,
                 average_task_time REAL,
+                task_count INTEGER,
                 task_success_rate REAL,
                 retry_success_rate REAL
             )
@@ -313,6 +318,7 @@ def insert_or_append_data(db_path: str, data: list):
                            makespan, 
                            workflow_finish, 
                            average_task_time, 
+                           task_count,
                            task_success_rate, 
                            retry_success_rate)
             VALUES (
@@ -328,6 +334,7 @@ def insert_or_append_data(db_path: str, data: list):
                            :makespan, 
                            :workflow_finish, 
                            :average_task_time, 
+                           :task_count,
                            :task_success_rate, 
                            :retry_success_rate)
         ''', filtered_data)
@@ -340,10 +347,12 @@ def insert_or_append_data(db_path: str, data: list):
 
 
 if __name__ == '__main__':
-    root_dir = '/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/runs'
+    root_dir = '/work/cse-zhousc/resilient_compute/resilience_test/taiyi/executors/runs'
+    # root_dir = '/data/cse-zhousc/log/same_time'
     dirs = get_all_directories(directory=root_dir)
 
-    db_path = 'example.db'
+    # db_path = 'example.db'
+    db_path = 'executors.db'
     create_database_and_table_if_not_exists(db_path)
     record_list = []
 
