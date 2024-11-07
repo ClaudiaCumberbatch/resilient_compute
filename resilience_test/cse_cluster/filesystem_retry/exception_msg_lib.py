@@ -81,7 +81,7 @@ ERROR_LIST = [
     'BufferError',
     'EOFError',
     'ImportError',
-    'ModuleNotFoundError',
+    # 'ModuleNotFoundError',
     'IndexError',
     'KeyError',
     'UnboundLocalError',
