@@ -1,14 +1,12 @@
 [app]
 name = "failures"
-base = "mapreduce"
+base = "cholesky"
 failure_rate = 0.3
-failure_type = "zero-division"
+failure_type = "memory"
 
 [app.config]
-data_dir = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/tmp/generated-files"
-map_tasks = 100
-generate = "True"
-generated_files = 100
+matrix_size = 10000
+block_size = 1000
 
 [engine.executor]
 name = "parsl-htex"
@@ -21,7 +19,7 @@ radio_mode = "filesystem"
 
 [engine.executor.htex.exe1.provider]
 kind = "LSFProvider"
-queue = "large"
+queue = "debug"
 scheduler_options = ""
 walltime = "00:20:00"
 bsub_redirection = 1
@@ -45,7 +43,7 @@ radio_mode = "filesystem"
 
 [engine.executor.htex.exe2.provider]
 kind = "LSFProvider"
-queue = "large"
+queue = "smp"
 scheduler_options = ""
 walltime = "00:20:00"
 bsub_redirection = 1
@@ -66,4 +64,4 @@ overrides="-ppn 1 -host $(cat $(echo $LSB_DJOB_HOSTFILE) | sort -n | uniq | head
 hub_address = "localhost"
 logging_endpoint = 'sqlite:///parsl-runinfo/monitoring.db'
 resource_monitoring_interval = 1
-hub_port = 55055
+hub_port = 55058

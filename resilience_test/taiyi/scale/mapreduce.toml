@@ -1,11 +1,11 @@
 [app]
 name = "failures"
 base = "mapreduce"
-failure_rate = 0.1
-failure_type = "worker-killed"
+failure_rate = 0.3
+failure_type = "zero-division"
 
 [app.config]
-data_dir = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/tmp/generated-files"
+data_dir = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/scale/tmp/generated-files"
 map_tasks = 100
 generate = "True"
 generated_files = 100
@@ -17,8 +17,6 @@ retries = 3
 [engine.executor.htex]
 max_workers = 40
 radio_mode = "filesystem"
-heartbeat_period = 5
-heartbeat_threshold = 20
 
 [engine.executor.htex.provider]
 kind = "LSFProvider"
@@ -43,4 +41,4 @@ overrides="-ppn 1 -host $(cat $(echo $LSB_DJOB_HOSTFILE) | sort -n | uniq | head
 hub_address = "localhost"
 logging_endpoint = 'sqlite:///parsl-runinfo/monitoring.db'
 resource_monitoring_interval = 1
-hub_port = 55059
+hub_port = 55057

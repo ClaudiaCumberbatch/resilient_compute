@@ -2,19 +2,21 @@
 
 source $(conda info --base)/etc/profile.d/conda.sh
 
-PORT=55059
+PORT=55057
 
+# TRAIL=9
 TRAIL=10
 
-# FAILURE_RATES=("0.0" "0.1" "0.2" "0.4" "0.5" "0.6") # 6
-FAILURE_RATES=("0.1")
+FAILURE_RATES=("0.05" "0.1" "0.15" "0.2" "0.25" "0.3") # 13
+# FAILURE_RATES=("0.3")
 
-BASES=("cholesky" "docking" "fedlearn" "mapreduce" "moldesign") # 5
-# BASES=("cholesky")
+# "montage"
+# BASES=("cholesky" "docking" "fedlearn" "mapreduce" "moldesign") # 6
+BASES=("cholesky")
 
 # timeout, random
-# FAILURE_TYPES=("dependency" "failure" "import" "memory" "ulimit" "worker-killed" "zero-division") # 7
-FAILURE_TYPES=("worker-killed")
+# FAILURE_TYPES=("dependency" "failure" "import" "memory" "ulimit" "worker-killed" "zero-division") # 8
+FAILURE_TYPES=("memory")
 
 for ((i=1; i<=TRAIL; i++)); do
   for failure_rate in "${FAILURE_RATES[@]}"; do
@@ -62,6 +64,9 @@ for ((i=1; i<=TRAIL; i++)); do
           echo "Port $PORT has been successfully released."
         fi
 
+        # check processes
+        ps -eo pid,etime,cmd | grep parsl | awk '$2 ~ /[0-9]+-[0-9]+:[0-9]+:[0-9]+/ || $2 ~ /[0-9]+:[0-9]+/ { split($2, a, ":"); if (length(a) == 3 && a[1] * 60 + a[2] > 120) print $1; else if (length(a) == 2 && a[1] > 120) print $1; }' | xargs kill
+
         # run python
         LOG_FILE="$base.log"
         if [ "$base" == "docking" ]; then
@@ -87,17 +92,20 @@ for ((i=1; i<=TRAIL; i++)); do
           ELAPSED=$((CURRENT_TIME - MODIFIED_TIME))
           TOTAL_RUNTIME=$((CURRENT_TIME - TASK_START_TIME))
 
-          # if [ $ELAPSED -gt $TIMEOUT_INTERVAL ]; then
-          #   echo "$(date): No output for 5 minutes. Terminating the process."
+          if [ $ELAPSED -gt $TIMEOUT_INTERVAL ]; then
+            # check if there are "exec_done" in the log file, if no, continue waiting
+            if grep -q "exec_done" "$LOG_FILE"; then
+              echo "$(date): No output for 5 minutes. Terminating the process."
+              kill -9 $TAP_PID
+              break
+            fi
+          fi
+
+          # if [ $TOTAL_RUNTIME -gt $MAX_RUNTIME ]; then
+          #   echo "$(date): Task has been running for more than 30 minutes. Terminating the process."
           #   kill -9 $TAP_PID
           #   break
           # fi
-
-          if [ $TOTAL_RUNTIME -gt $MAX_RUNTIME ]; then
-            echo "$(date): Task has been running for more than 30 minutes. Terminating the process."
-            kill -9 $TAP_PID
-            break
-          fi
         done
 
         mv cmd* runs/cmd

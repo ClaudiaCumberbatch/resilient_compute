@@ -1,14 +1,14 @@
 [app]
 name = "failures"
 base = "mapreduce"
-failure_rate = 0.3
-failure_type = "zero-division"
+failure_rate = 1
+failure_type = "memory"
 
 [app.config]
-data_dir = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/tmp/generated-files"
-map_tasks = 100
+data_dir = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/mapreduce/tmp/generated-files"
+map_tasks = 3
 generate = "True"
-generated_files = 100
+generated_files = 10
 
 [engine.executor]
 name = "parsl-htex"
@@ -21,7 +21,7 @@ radio_mode = "filesystem"
 
 [engine.executor.htex.exe1.provider]
 kind = "LSFProvider"
-queue = "large"
+queue = "short"
 scheduler_options = ""
 walltime = "00:20:00"
 bsub_redirection = 1
@@ -30,7 +30,7 @@ max_blocks = 1
 min_blocks = 1
 
 request_by_nodes = 0
-cores_per_block = 40
+cores_per_block = 160
 cores_per_node = 40
 
 [engine.executor.htex.exe1.provider.launcher]
@@ -45,7 +45,7 @@ radio_mode = "filesystem"
 
 [engine.executor.htex.exe2.provider]
 kind = "LSFProvider"
-queue = "large"
+queue = "smp"
 scheduler_options = ""
 walltime = "00:20:00"
 bsub_redirection = 1

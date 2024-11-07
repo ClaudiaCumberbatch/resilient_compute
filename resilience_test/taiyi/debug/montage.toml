@@ -2,7 +2,7 @@
 name = "failures"
 base = "montage"
 failure_rate = 0.3
-failure_type = "zero-division"
+failure_type = "dependency"
 
 [app.config]
 img_folder = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/data/Kimages"
@@ -17,7 +17,7 @@ radio_mode = "filesystem"
 
 [engine.executor.htex.provider]
 kind = "LSFProvider"
-queue = "debug"
+queue = "large"
 scheduler_options = ""
 walltime = "00:20:00"
 bsub_redirection = 1
@@ -26,7 +26,7 @@ max_blocks = 1
 min_blocks = 1
 
 request_by_nodes = 0
-cores_per_block = 80
+cores_per_block = 1280
 cores_per_node = 40
 
 [engine.executor.htex.provider.launcher]
@@ -38,4 +38,4 @@ overrides="-ppn 1 -host $(cat $(echo $LSB_DJOB_HOSTFILE) | sort -n | uniq | head
 hub_address = "localhost"
 logging_endpoint = 'sqlite:///parsl-runinfo/monitoring.db'
 resource_monitoring_interval = 1
-hub_port = 55055
+hub_port = 55059

@@ -2,19 +2,20 @@
 
 source $(conda info --base)/etc/profile.d/conda.sh
 
-PORT=55059
+PORT=55058
 
-TRAIL=10
+# TRAIL=10
+TRAIL=7
 
 # FAILURE_RATES=("0.0" "0.1" "0.2" "0.4" "0.5" "0.6") # 6
-FAILURE_RATES=("0.1")
+FAILURE_RATES=("0.3")
 
-BASES=("cholesky" "docking" "fedlearn" "mapreduce" "moldesign") # 5
-# BASES=("cholesky")
+# BASES=("cholesky" "docking" "fedlearn" "mapreduce" "moldesign" "montage") # 6
+BASES=("cholesky")
 
-# timeout, random
-# FAILURE_TYPES=("dependency" "failure" "import" "memory" "ulimit" "worker-killed" "zero-division") # 7
-FAILURE_TYPES=("worker-killed")
+# timeout, random, manager-kill
+# FAILURE_TYPES=("dependency" "failure" "import" "memory" "ulimit" "worker-killed" "zero-division") # 8
+FAILURE_TYPES=("memory")
 
 for ((i=1; i<=TRAIL; i++)); do
   for failure_rate in "${FAILURE_RATES[@]}"; do
@@ -62,6 +63,9 @@ for ((i=1; i<=TRAIL; i++)); do
           echo "Port $PORT has been successfully released."
         fi
 
+        # check processes
+        ps -eo pid,etime,cmd | grep parsl | awk '$2 ~ /[0-9]+-[0-9]+:[0-9]+:[0-9]+/ || $2 ~ /[0-9]+:[0-9]+/ { split($2, a, ":"); if (length(a) == 3 && a[1] * 60 + a[2] > 120) print $1; else if (length(a) == 2 && a[1] > 120) print $1; }' | xargs kill
+
         # run python
         LOG_FILE="$base.log"
         if [ "$base" == "docking" ]; then
@@ -80,7 +84,7 @@ for ((i=1; i<=TRAIL; i++)); do
         MAX_RUNTIME=1800 # 30 minutes
 
         while kill -0 $TAP_PID 2>/dev/null; do
-          sleep 10
+          sleep 60
 
           CURRENT_TIME=$(date +%s)
           MODIFIED_TIME=$(date +%s -r "$LOG_FILE")
@@ -99,8 +103,6 @@ for ((i=1; i<=TRAIL; i++)); do
             break
           fi
         done
-
-        mv cmd* runs/cmd
 
       done
     done

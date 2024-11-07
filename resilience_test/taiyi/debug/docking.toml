@@ -1,8 +1,8 @@
 [app]
 name = "failures"
 base = "docking"
-failure_rate = 0.3
-failure_type = "zero-division"
+failure_rate = 0.1
+failure_type = "worker-killed"
 
 [app.config]
 smi_file_name_ligand = "/work/cse-zhousc/resilient_compute/resilience_test/taiyi/debug/data/docking/dataset_orz_original_1k.csv"
@@ -16,19 +16,22 @@ retries = 3
 [engine.executor.htex]
 max_workers = 40
 radio_mode = "filesystem"
+heartbeat_period = 5
+heartbeat_threshold = 20
 
 [engine.executor.htex.provider]
 kind = "LSFProvider"
-queue = "debug"
+queue = "large"
 scheduler_options = ""
 walltime = "00:20:00"
 bsub_redirection = 1
 init_blocks = 1
 max_blocks = 1
 min_blocks = 1
+worker_init = "export MGLTOOLS_HOME=$CONDA_PREFIX; export OMP_NUM_THREADS=1;"
 
 request_by_nodes = 0
-cores_per_block = 80
+cores_per_block = 1280
 cores_per_node = 40
 
 [engine.executor.htex.provider.launcher]
@@ -40,4 +43,4 @@ overrides="-ppn 1 -host $(cat $(echo $LSB_DJOB_HOSTFILE) | sort -n | uniq | head
 hub_address = "localhost"
 logging_endpoint = 'sqlite:///parsl-runinfo/monitoring.db'
 resource_monitoring_interval = 1
-hub_port = 55055
+hub_port = 55059
