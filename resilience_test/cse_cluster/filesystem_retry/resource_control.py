@@ -29,7 +29,7 @@ class Resource_Controller():
         self.taskrecord = taskrecord
         self.logger = logger
         self.node_list = []
-        self.executor_list = []
+        self.executor_list = {}
         self.logger.info("resource controller initialized")
 
     def get_satisfying_list(self, is_node: bool, bad_dict: dict) -> list:
@@ -57,6 +57,7 @@ class Resource_Controller():
             #     continue
 
             if is_node:
+                # message_dict also contains executor_label, so it can be accessed by last_info
                 last_info[message_dict['hostname']] = message_dict
             else:
                 last_info[message_dict['executor_label']] = message_dict
@@ -65,10 +66,17 @@ class Resource_Controller():
         # Choose the satisfying ones according to bad_list
         for hostname, msg_dict in last_info.items(): # here hostname is hostname or executor_label
             if "MEMORY" in bad_dict.keys():
-                if int(msg_dict['memory_free'])/(1024**3) > bad_dict["MEMORY"]: # the rest mem is enough
+                self.logger.info(f"memory_free*0.6 - bad_dict memory = {int(msg_dict['memory_free'])*0.6 - int(bad_dict['MEMORY'])}")
+                if int(msg_dict['memory_free'])*0.6 > int(bad_dict["MEMORY"]): # the rest mem is enough
                     l.append(hostname)
+                    corresponding_executor = msg_dict['executor_label']
+                    if corresponding_executor != self.taskrecord['executor']:
+                        self.executor_list[hostname] = corresponding_executor
                 elif hostname in l:
                     l.remove(hostname)
+                    # if there multiple same executor_label, only remove one
+                    self.executor_list.pop(hostname, None)
+                    # self.executor_list.remove(msg_dict['executor_label'])
             if "WALLTIME" in bad_dict.keys():
                 current_provider = self.taskrecord['dfk'].executors[self.taskrecord['executor']].provider
                 if isinstance(current_provider, SlurmProvider): # TODO: other providers
@@ -114,10 +122,15 @@ class Resource_Controller():
         if root_cause == "resource_starvation":
             # now the bad_list is a dict containing starved resource types and peak values, but can also be empty
             if bad_list is not {}:
-                # this node_list is a subset of current executor's node list
+                # the sentense in the braket is the orginal logic but not for now (this node_list is a subset of current executor's node list)
+                self.executor_list = {}
+                # if suggested node is from the other executor, update self.executor_list inside the function
                 node_list = self.get_satisfying_list(is_node=True, bad_dict=bad_list) 
-                executor_list = self.get_satisfying_list(is_node=False, bad_dict=bad_list) 
-            return node_list, executor_list
+                # if len(node_list) > 0 and self.executor_list != []:
+                #     return node_list, self.executor_list
+                    
+                # executor_list = self.get_satisfying_list(is_node=False, bad_dict=bad_list) 
+            return node_list, self.executor_list
    
         # elif root_cause == "machine_shutdown":
         #     # TODO: this can get a denylist, but how to get a full list?

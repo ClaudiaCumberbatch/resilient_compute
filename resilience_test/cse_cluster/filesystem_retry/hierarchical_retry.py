@@ -35,6 +35,13 @@ class Retry_Controller():
                 manager_id = message_df.iloc[0]['uid'].encode('utf-8')
                 self.taskrecord['resource_specification']['manager_id'] = manager_id
                 self.logger.info(f"set manager_id to {manager_id}")
+                if node_list[0] in executor_list.keys():
+                    self.logger.info(f"the suggested node is from another executor, so update executor to {executor_list[node_list[0]]} as well")
+                    self.taskrecord['executor'] = executor_list[node_list[0]]
+            
+            # if len(executor_list) >= 1:
+            #     self.logger.info(f"the suggested node is from another executor, so update executor to {self.taskrecord['executor']} as well")
+            #     self.taskrecord['executor'] = executor_list[0] 
 
         elif len(executor_list) >= 1:
             self.logger.info(f"attempt to switch to a new executor according to suggested executor_list: {executor_list}")
