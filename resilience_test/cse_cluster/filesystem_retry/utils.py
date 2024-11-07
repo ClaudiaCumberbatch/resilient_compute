@@ -60,6 +60,9 @@ def get_messages_from_files(
         return found_dirs
     
     def path2obj(path):
+        # check whether the path exists
+        if not os.path.exists(path):
+            return None
         with open(path, "rb") as f:
             content = f.read() 
             try:
