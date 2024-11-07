@@ -141,9 +141,10 @@ class Resource_Analyzer():
                 cpu_intense_time_cnt += 1
 
             # Get the max value of each type
-            for key, value in message.items():
-                if key not in max_values or value > max_values[key]:
-                    max_values[key] = value
+            if message['hostname'] == self.hostname:
+                for key, value in message.items():
+                    if key not in max_values or value > max_values[key]:
+                        max_values[key] = value
 
         if len(max_values) == 0:
             self.logger.info("No NODE_INFO found yet.")
@@ -151,7 +152,7 @@ class Resource_Analyzer():
         
         self.logger.info(f"max_values: {max_values}")
         # Compare with overall value
-        if float(max_values['memory_percent']) > 0.6: # TODO: make configurable
+        if float(max_values['memory_percent']) > 60: # TODO: make configurable
             self.add2starved("MEMORY", max_values['memory_used'])
 
         current_provider = self.taskrecord['dfk'].executors[self.taskrecord['executor']].provider
