@@ -36,6 +36,7 @@ def get_one_record(directory: str) -> dict:
     record['task_count'] = 0
     record['task_success_rate'] = None
     record['retry_success_rate'] = None
+    record['failure_track'] = None
     record['resilience'] = None
     record['overhead'] = 0
     record['executor_cnt'] = 0
@@ -65,9 +66,11 @@ def find_path(directory: str, target: str) -> str:
 
 def get_info_from_db(db_path: str, record: dict):
     """
-    Extract run_id, run_dir, makespan, workflow_finish, average_task_time, task_count, task_success_rate, and retry_success_rate from database.
+    Extract run_id, run_dir, makespan, workflow_finish, average_task_time, task_count, task_success_rate, retry_success_rate, and failure_track from database.
     makespan indicates whether the workflow finished by itself,
     while workflow_finish indicates whether the workflow finished successfully.
+    failure_track is a test feature for mapreduce (3 maps, 1 reduce). 
+    It's a string seperated by one comma, indicating the number of failures in map period and reduce period.
     Directly modify record.
     Return nothing.
     """
@@ -171,6 +174,25 @@ def get_info_from_db(db_path: str, record: dict):
 
         record['retry_success_rate'] = retry_success_rate
 
+        # failure_track
+        cursor.execute('''
+            SELECT COUNT(*) AS failure_count_map
+            FROM try
+            WHERE try_id = 0
+            AND task_fail_history IS NOT ''
+            AND (task_id IS '0' OR task_id IS '1' OR task_id IS '2')
+        ''')
+        failure_count_map = cursor.fetchone()[0]
+        cursor.execute('''
+            SELECT COUNT(*) AS failure_count_reduce
+            FROM try
+            WHERE try_id = 0
+            AND task_fail_history IS NOT ''
+            AND task_id IS '3'
+        ''')
+        failure_count_reduce = cursor.fetchone()[0]
+        record['failure_track'] = f'{failure_count_map},{failure_count_reduce}'
+        
         
     except sqlite3.Error as e:
         print(f"An error occurred: {e}")
@@ -284,7 +306,8 @@ def create_database_and_table_if_not_exists(db_path: str):
                 average_task_time REAL,
                 task_count INTEGER,
                 task_success_rate REAL,
-                retry_success_rate REAL
+                retry_success_rate REAL,
+                failure_track TEXT
             )
         ''')
         conn.commit()
@@ -320,7 +343,8 @@ def insert_or_append_data(db_path: str, data: list):
                            average_task_time, 
                            task_count,
                            task_success_rate, 
-                           retry_success_rate)
+                           retry_success_rate,
+                           failure_track)
             VALUES (
                            :run_id, 
                            :run_dir, 
@@ -336,7 +360,8 @@ def insert_or_append_data(db_path: str, data: list):
                            :average_task_time, 
                            :task_count,
                            :task_success_rate, 
-                           :retry_success_rate)
+                           :retry_success_rate,
+                           :failure_track)
         ''', filtered_data)
         conn.commit()
     except sqlite3.Error as e:
@@ -347,13 +372,12 @@ def insert_or_append_data(db_path: str, data: list):
 
 
 if __name__ == '__main__':
-    root_dir = '/work/cse-zhousc/resilient_compute/resilience_test/taiyi/rate/runs'
+    root_dir = '/work/cse-zhousc/resilient_compute/resilience_test/taiyi/mapreduce/runs'
     # root_dir = '/data/cse-zhousc/log/same_time'
     dirs = get_all_directories(directory=root_dir)
 
     # db_path = 'example.db'
-    # db_path = 'executors.db'
-    db_path = 'new.db'
+    db_path = 'mapreduce_correct.db'
     create_database_and_table_if_not_exists(db_path)
     record_list = []
 

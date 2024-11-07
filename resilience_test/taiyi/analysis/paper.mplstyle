@@ -1,0 +1,5 @@
+text.usetex: False
+font.family: serif
+font.serif: Computer Modern
+savefig.bbox: tight
+savefig.format: pdf
